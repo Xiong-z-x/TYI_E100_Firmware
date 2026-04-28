@@ -106,7 +106,8 @@ class PubHandler {
                                              LivoxLidarEthernetPacket *data, void *client_data);
   
   static bool GetLidarId(LidarProtoType lidar_type, uint32_t handle, uint32_t& id);
-  static uint64_t GetEthPacketTimestamp(uint8_t timestamp_type, uint8_t* time_stamp, uint8_t size);
+  static uint64_t GetEthPacketTimestamp(uint8_t timestamp_type, uint8_t* time_stamp, uint8_t size,
+                                       uint32_t handle, bool is_imu, uint64_t fallback_step_ns);
 
   PointCloudsCallback points_callback_;
   void* pub_client_data_ = nullptr;

@@ -1,14 +1,29 @@
 FROM ros:noetic-ros-base-focal
 
-ARG UBUNTU_PORTS_MIRROR=http://ports.ubuntu.com/ubuntu-ports
+ARG UBUNTU_PORTS_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports
 ARG ROS_APT_MIRROR=http://snapshots.ros.org/noetic/final/ubuntu
+ARG HTTP_PROXY=
+ARG HTTPS_PROXY=
+ARG ALL_PROXY=
+ARG NO_PROXY=localhost,127.0.0.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV ROS_DISTRO=noetic
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV ALL_PROXY=${ALL_PROXY}
+ENV NO_PROXY=${NO_PROXY}
+ENV http_proxy=${HTTP_PROXY}
+ENV https_proxy=${HTTPS_PROXY}
+ENV all_proxy=${ALL_PROXY}
+ENV no_proxy=${NO_PROXY}
 
 RUN printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' >/etc/apt/apt.conf.d/80-uav-retries \
+  && rm -f /etc/apt/apt.conf.d/81-uav-proxy \
+  && if [ -n "${HTTP_PROXY}" ]; then printf 'Acquire::http::Proxy "%s";\n' "${HTTP_PROXY}" >/etc/apt/apt.conf.d/81-uav-proxy; fi \
+  && if [ -n "${HTTPS_PROXY}" ]; then printf 'Acquire::https::Proxy "%s";\n' "${HTTPS_PROXY}" >>/etc/apt/apt.conf.d/81-uav-proxy; fi \
   && sed -i "s|http://ports.ubuntu.com/ubuntu-ports|${UBUNTU_PORTS_MIRROR}|g" /etc/apt/sources.list \
   && sed -i "s|http://snapshots.ros.org/noetic/final/ubuntu|${ROS_APT_MIRROR}|g" /etc/apt/sources.list.d/ros1-snapshots.list
 

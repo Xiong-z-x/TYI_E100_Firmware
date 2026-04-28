@@ -9,11 +9,18 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <exec_depend>dlio</exec_depend>
+  <exec_depend>fast_lio</exec_depend>
   <exec_depend>fastlio_to_mavros</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>livox_ros_driver2</exec_depend>
   <exec_depend>mavros</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>roslaunch</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
 
   <export />
 </package>

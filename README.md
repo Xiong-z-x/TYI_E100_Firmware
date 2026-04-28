@@ -19,12 +19,12 @@ English version: [README_EN.md](README_EN.md)
 
 - 面向 Ubuntu 20.04 + ROS1 Noetic 的可见源码部署包
 - 通过 [machine.env](machine.env) 收敛机型差异配置
-- 基于 Docker 的 `livox_ros_driver2`、`dlio`、`fastlio_to_mavros`、`mavros`、`mavlink`、`uav_base_bringup` 启动能力
+- 基于 Docker 的 `livox_ros_driver2`、`fast_lio`、`fastlio_to_mavros`、`mavros`、`mavlink`、`uav_base_bringup` 启动能力
 - 面向产品固件发布的部署与运维脚本
 
 ## 运行链路
 
-`Livox MID360 -> DLIO -> fastlio_to_mavros -> MAVROS -> PX4`
+`Livox MID360 -> FastLIO2 -> fastlio_to_mavros -> MAVROS -> PX4`
 
 ## 快速开始
 
@@ -85,8 +85,8 @@ bash ./scripts/enter.sh
   机型 UART、MID360 序列号/IP、宿主机网卡设置
 - [configs/fastlio_to_mavros/bridge.yaml](configs/fastlio_to_mavros/bridge.yaml)
   后续如需接入控制桥接，可在此调整桥接话题与参考坐标系
-- [configs/dlio](configs/dlio)
-  DLIO 运行参数
+- [configs/fastlio2](configs/fastlio2)
+  FastLIO2 运行参数
 - [configs/mavros](configs/mavros)
   MAVROS 插件与 FCU 参数
 

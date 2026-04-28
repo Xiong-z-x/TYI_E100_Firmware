@@ -1,5 +1,14 @@
 logs/*
 !logs/.gitkeep
+backups/
+state/
+calibration_data/
+experiments/
+*.bak
+*.bak.*
+*.bak_*
+.env.bak_*
+*~
 workspace/build/
 workspace/devel/
 workspace/install/

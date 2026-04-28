@@ -19,12 +19,12 @@ Current version: [VERSION](VERSION)
 
 - source-visible deployment package for Ubuntu 20.04 + ROS1 Noetic
 - single-machine configuration entry through [machine.env](machine.env)
-- Docker-based bring-up for `livox_ros_driver2`, `dlio`, `fastlio_to_mavros`, `mavros`, `mavlink`, and `uav_base_bringup`
+- Docker-based bring-up for `livox_ros_driver2`, `fast_lio`, `fastlio_to_mavros`, `mavros`, `mavlink`, and `uav_base_bringup`
 - product firmware deployment and operation scripts
 
 ## Runtime Pipeline
 
-`Livox MID360 -> DLIO -> fastlio_to_mavros -> MAVROS -> PX4`
+`Livox MID360 -> FastLIO2 -> fastlio_to_mavros -> MAVROS -> PX4`
 
 ## Quick Start
 
@@ -84,8 +84,8 @@ Notes:
   airframe UART, MID360 serial/IP, and host NIC settings
 - [configs/fastlio_to_mavros/bridge.yaml](configs/fastlio_to_mavros/bridge.yaml)
   bridge topic and frame settings when downstream control integration is needed
-- [configs/dlio](configs/dlio)
-  DLIO runtime parameters
+- [configs/fastlio2](configs/fastlio2)
+  FastLIO2 runtime parameters
 - [configs/mavros](configs/mavros)
   MAVROS plugin and FCU parameters
 

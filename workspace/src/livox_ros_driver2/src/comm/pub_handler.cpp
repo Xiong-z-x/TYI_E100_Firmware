@@ -56,7 +56,7 @@ uint64_t GetMonotonicRawNowNs() {
 
 struct SharedTimebaseAnchor {
   bool valid = false;
-  uint64_t unix_anchor_ns = 0;
+  uint64_t internal_anchor_ns = 0;
   uint64_t monotonic_raw_anchor_ns = 0;
 };
 
@@ -77,8 +77,8 @@ bool LoadSharedTimebaseAnchor(const std::string& path, SharedTimebaseAnchor& anc
     const std::string value = line.substr(delim + 1);
 
     try {
-      if (key == "UNIX_ANCHOR_NS") {
-        anchor.unix_anchor_ns = std::stoull(value);
+      if (key == "INTERNAL_ANCHOR_NS" || key == "UNIX_ANCHOR_NS") {
+        anchor.internal_anchor_ns = std::stoull(value);
       } else if (key == "MONOTONIC_RAW_ANCHOR_NS") {
         anchor.monotonic_raw_anchor_ns = std::stoull(value);
       }
@@ -87,20 +87,15 @@ bool LoadSharedTimebaseAnchor(const std::string& path, SharedTimebaseAnchor& anc
     }
   }
 
-  anchor.valid = anchor.unix_anchor_ns != 0 && anchor.monotonic_raw_anchor_ns != 0;
+  anchor.valid = anchor.internal_anchor_ns != 0 && anchor.monotonic_raw_anchor_ns != 0;
   return anchor.valid;
 }
 
-uint64_t GetFallbackMonotonicEpochTimestampNs() {
-  static const uint64_t unix_anchor_ns =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(
-          std::chrono::system_clock::now().time_since_epoch()).count();
-  static const uint64_t monotonic_anchor_ns = GetMonotonicRawNowNs();
-  const uint64_t monotonic_now_ns = GetMonotonicRawNowNs();
-  return unix_anchor_ns + (monotonic_now_ns - monotonic_anchor_ns);
+uint64_t GetFallbackMonotonicInternalTimestampNs() {
+  return GetMonotonicRawNowNs();
 }
 
-uint64_t GetSharedMonotonicEpochTimestampNs() {
+uint64_t GetSharedMonotonicInternalTimestampNs() {
   static const SharedTimebaseAnchor anchor = [] {
     SharedTimebaseAnchor loaded_anchor;
     const char* configured_path = std::getenv("TYI_TIMEBASE_FILE");
@@ -110,18 +105,55 @@ uint64_t GetSharedMonotonicEpochTimestampNs() {
 
     if (!LoadSharedTimebaseAnchor(path, loaded_anchor)) {
       std::cerr << "[livox_ros_driver2] shared timebase anchor not available at "
-                << path << ", falling back to process-local monotonic epoch clock."
+                << path << ", falling back to process-local monotonic internal clock."
                 << std::endl;
     }
     return loaded_anchor;
   }();
 
   if (!anchor.valid) {
-    return GetFallbackMonotonicEpochTimestampNs();
+    return GetFallbackMonotonicInternalTimestampNs();
   }
 
   const uint64_t monotonic_now_ns = GetMonotonicRawNowNs();
-  return anchor.unix_anchor_ns + (monotonic_now_ns - anchor.monotonic_raw_anchor_ns);
+  return anchor.internal_anchor_ns + (monotonic_now_ns - anchor.monotonic_raw_anchor_ns);
+}
+
+constexpr uint64_t kLivoxNoSyncImuStepNs = 5000000ULL;       // 200 Hz
+constexpr uint64_t kLivoxNoSyncMinPacketStepNs = 1000000ULL; // 1 ms fallback
+constexpr uint64_t kLivoxNoSyncMaxLagNs = 250000000ULL;
+
+std::mutex g_nosync_clock_mutex;
+std::map<uint64_t, uint64_t> g_nosync_last_ns;
+
+uint64_t MakeNoSyncClockKey(uint32_t handle, bool is_imu) {
+  return (static_cast<uint64_t>(handle) << 1) | (is_imu ? 1ULL : 0ULL);
+}
+
+uint64_t GetNoSyncSteppedTimestampNs(uint32_t handle, bool is_imu, uint64_t step_ns) {
+  const uint64_t now_ns = GetSharedMonotonicInternalTimestampNs();
+  uint64_t effective_step_ns = step_ns;
+  if (effective_step_ns == 0) {
+    effective_step_ns = is_imu ? kLivoxNoSyncImuStepNs : kLivoxNoSyncMinPacketStepNs;
+  }
+
+  std::lock_guard<std::mutex> lock(g_nosync_clock_mutex);
+  uint64_t& last_ns = g_nosync_last_ns[MakeNoSyncClockKey(handle, is_imu)];
+  if (last_ns == 0) {
+    last_ns = now_ns;
+    return last_ns;
+  }
+
+  uint64_t next_ns = last_ns + effective_step_ns;
+  if (now_ns > next_ns + kLivoxNoSyncMaxLagNs) {
+    next_ns = now_ns - kLivoxNoSyncMaxLagNs;
+  }
+  if (next_ns <= last_ns) {
+    next_ns = last_ns + effective_step_ns;
+  }
+
+  last_ns = next_ns;
+  return last_ns;
 }
 
 }  // namespace
@@ -210,7 +242,8 @@ void PubHandler::OnLivoxLidarPointCloudCallback(uint32_t handle, const uint8_t d
       imu_data.lidar_type = static_cast<uint8_t>(LidarProtoType::kLivoxLidarType);
       imu_data.handle = handle;
       imu_data.time_stamp = GetEthPacketTimestamp(data->time_type,
-                                                  data->timestamp, sizeof(data->timestamp));
+                                                  data->timestamp, sizeof(data->timestamp),
+                                                  handle, true, kLivoxNoSyncImuStepNs);
       imu_data.gyro_x = imu->gyro_x;
       imu_data.gyro_y = imu->gyro_y;
       imu_data.gyro_z = imu->gyro_z;
@@ -235,8 +268,10 @@ void PubHandler::OnLivoxLidarPointCloudCallback(uint32_t handle, const uint8_t d
   packet.data_type = data->data_type;
   packet.point_num = data->dot_num;
   packet.point_interval = data->time_interval * 100 / data->dot_num;  //ns
+  const uint64_t packet_span_ns = packet.point_interval * (packet.point_num == 0 ? 1 : packet.point_num);
   packet.time_stamp = GetEthPacketTimestamp(data->time_type,
-                                            data->timestamp, sizeof(data->timestamp));
+                                            data->timestamp, sizeof(data->timestamp),
+                                            handle, false, packet_span_ns);
   uint32_t length = data->length - sizeof(LivoxLidarEthernetPacket) + 1;
   packet.raw_data.insert(packet.raw_data.end(), data->data, data->data + length);
   {
@@ -257,68 +292,44 @@ void PubHandler::PublishPointCloud() {
 }
 
 void PubHandler::CheckTimer(uint32_t id) {
+  auto handler_it = lidar_process_handlers_.find(id);
+  if (handler_it == lidar_process_handlers_.end()) {
+    return;
+  }
 
-  if (PubHandler::is_timestamp_sync_.load()) { // Enable time synchronization
-    auto& process_handler = lidar_process_handlers_[id];
-    uint64_t recent_time_ms = process_handler->GetRecentTimeStamp() / kRatioOfMsToNs;
-    if ((recent_time_ms % publish_interval_ms_ != 0) || recent_time_ms == 0) {
-      return;
-    }
+  auto& process_handler = handler_it->second;
+  const uint64_t base_time_ns = process_handler->GetLidarBaseTime();
+  const uint64_t recent_time_ns = process_handler->GetRecentTimeStamp();
+  if (base_time_ns == 0 || recent_time_ns == 0 || recent_time_ns <= base_time_ns) {
+    return;
+  }
 
-    uint64_t diff = process_handler->GetRecentTimeStamp() - process_handler->GetLidarBaseTime();
-    if (diff < publish_interval_tolerance_) {
-      return;
-    }
+  // Flush whenever the buffered point span reaches the configured publish window.
+  // The previous exact-ms modulo gate was brittle with host-anchored timestamps and
+  // could leak raw 96-point packets directly into ROS instead of aggregated frames.
+  const uint64_t diff = recent_time_ns - base_time_ns;
+  if (diff < publish_interval_tolerance_) {
+    return;
+  }
 
-    frame_.base_time[frame_.lidar_num] = process_handler->GetLidarBaseTime();
-    points_[id].clear();
-    process_handler->GetLidarPointClouds(points_[id]);
-    if (points_[id].empty()) {
-      return;
-    }
-    PointPacket& lidar_point = frame_.lidar_point[frame_.lidar_num];
-    lidar_point.lidar_type = LidarProtoType::kLivoxLidarType;  // TODO:
-    lidar_point.handle = id;
-    lidar_point.points_num = points_[id].size();
-    lidar_point.points = points_[id].data();
-    frame_.lidar_num++;
-    
-    if (frame_.lidar_num != 0) {
-      PublishPointCloud();
-      frame_.lidar_num = 0;
-    }
-  } else { // Disable time synchronization
-    auto now_time = std::chrono::high_resolution_clock::now();
-    //First Set
-    static bool first = true;
-    if (first) {
-      last_pub_time_ = now_time;
-      first = false;
-      return;
-    }
-    if (now_time - last_pub_time_ < std::chrono::nanoseconds(publish_interval_)) {
-      return;
-    }
-    last_pub_time_ += std::chrono::nanoseconds(publish_interval_);
-    for (auto &process_handler : lidar_process_handlers_) {
-      frame_.base_time[frame_.lidar_num] = process_handler.second->GetLidarBaseTime();
-      uint32_t handle = process_handler.first;
-      points_[handle].clear();
-      process_handler.second->GetLidarPointClouds(points_[handle]);
-      if (points_[handle].empty()) {
-        continue;
-      }
-      PointPacket& lidar_point = frame_.lidar_point[frame_.lidar_num];
-      lidar_point.lidar_type = LidarProtoType::kLivoxLidarType;  // TODO:
-      lidar_point.handle = handle;
-      lidar_point.points_num = points_[handle].size();
-      lidar_point.points = points_[handle].data();
-      frame_.lidar_num++;
-    }
+  frame_.base_time[frame_.lidar_num] = base_time_ns;
+  points_[id].clear();
+  process_handler->GetLidarPointClouds(points_[id]);
+  if (points_[id].empty()) {
+    return;
+  }
+
+  PointPacket& lidar_point = frame_.lidar_point[frame_.lidar_num];
+  lidar_point.lidar_type = LidarProtoType::kLivoxLidarType;  // TODO:
+  lidar_point.handle = id;
+  lidar_point.points_num = points_[id].size();
+  lidar_point.points = points_[id].data();
+  frame_.lidar_num++;
+
+  if (frame_.lidar_num != 0) {
     PublishPointCloud();
     frame_.lidar_num = 0;
   }
-  return;
 }
 
 void PubHandler::RawDataProcess() {
@@ -357,16 +368,15 @@ bool PubHandler::GetLidarId(LidarProtoType lidar_type, uint32_t handle, uint32_t
   return false;
 }
 
-uint64_t PubHandler::GetEthPacketTimestamp(uint8_t timestamp_type, uint8_t* time_stamp, uint8_t size) {
-  LdsStamp time;
-  memcpy(time.stamp_bytes, time_stamp, size);
+uint64_t PubHandler::GetEthPacketTimestamp(uint8_t timestamp_type, uint8_t* time_stamp, uint8_t size,
+                                           uint32_t handle, bool is_imu, uint64_t fallback_step_ns) {
+  (void)timestamp_type;
+  (void)time_stamp;
+  (void)size;
 
-  if (timestamp_type == kTimestampTypeGptpOrPtp ||
-      timestamp_type == kTimestampTypeGps) {
-    return time.stamp;
-  }
-
-  return GetSharedMonotonicEpochTimestampNs();
+  // Keep Livox LiDAR and IMU stamps in the shared monotonic ROS timebase even
+  // when the device starts reporting PTP/GPS packet timestamps after networking.
+  return GetNoSyncSteppedTimestampNs(handle, is_imu, fallback_step_ns);
 }
 
 /*******************************/

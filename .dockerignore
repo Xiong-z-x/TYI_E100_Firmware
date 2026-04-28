@@ -8,3 +8,7 @@ logs
 **/.catkin_tools
 **/__pycache__
 **/*.pyc
+backups
+state
+*.bak*
+**/*.bak*

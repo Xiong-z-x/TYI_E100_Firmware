@@ -323,6 +323,11 @@ private:
 
 	void handle_timesync(const mavlink::mavlink_message_t *msg, mavlink::common::msg::TIMESYNC &tsync)
 	{
+		auto ts_mode = m_uas->get_timesync_mode();
+		if (ts_mode == TSM::NONE) {
+			return;
+		}
+
 		uint64_t now_ns = ros::Time::now().toNSec();
 
 		if (tsync.tc1 == 0) {

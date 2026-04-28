@@ -1,6 +1,5 @@
 <launch>
   <arg name="config_root" default="$(optenv UAV_CONFIG_DIR /opt/uav/configs)" />
-  <arg name="robot_namespace" default="$(optenv DLIO_NAMESPACE robot)" />
 
   <arg name="livox_bd_list" default="$(optenv LIVOX_BD_LIST 147MDLC40020242)" />
   <arg name="livox_frame_id" default="$(optenv LIVOX_FRAME_ID livox_frame)" />
@@ -13,6 +12,10 @@
   <arg name="fcu_protocol" default="$(optenv MAVROS_FCU_PROTOCOL v2.0)" />
   <arg name="log_output" default="$(optenv MAVROS_LOG_OUTPUT screen)" />
   <arg name="respawn_mavros" default="$(optenv MAVROS_RESPAWN false)" />
+  <arg name="enable_high_rate_odom_ekf" default="$(optenv ENABLE_HIGH_RATE_ODOM_EKF true)" />
+  <arg name="high_rate_odom_ekf_imu_topic" default="$(optenv HIGH_RATE_ODOM_EKF_IMU_TOPIC /livox/imu)" />
+  <arg name="high_rate_odom_ekf_odom_topic" default="$(optenv HIGH_RATE_ODOM_EKF_ODOM_TOPIC /robot/fastlio2/odom)" />
+  <arg name="high_rate_odom_ekf_output_topic" default="$(optenv HIGH_RATE_ODOM_EKF_OUTPUT_TOPIC /robot/ekf_odom)" />
 
   <node name="livox_lidar_publisher2"
         pkg="livox_ros_driver2"
@@ -33,27 +36,56 @@
     <param name="enable_imu_bag" type="bool" value="true" />
   </node>
 
-  <node ns="$(arg robot_namespace)"
-        name="dlio_odom"
-        pkg="dlio"
-        type="dlio_odom"
-        output="screen"
-        clear_params="true">
-    <rosparam file="$(arg config_root)/dlio/dlio.yaml" command="load" />
-    <rosparam file="$(arg config_root)/dlio/params.yaml" command="load" />
-    <remap from="~pointcloud" to="/livox/lidar" />
-    <remap from="~imu" to="/livox/imu" />
-    <remap from="~odom" to="dlio/odom_node/odom" />
-    <remap from="~pose" to="dlio/odom_node/pose" />
-    <remap from="~path" to="dlio/odom_node/path" />
-    <remap from="~kf_pose" to="dlio/odom_node/keyframes" />
-    <remap from="~kf_cloud" to="dlio/odom_node/pointcloud/keyframe" />
+  <rosparam file="$(arg config_root)/fastlio2/mid360.yaml" command="load" />
+  <param name="feature_extract_enable" type="bool" value="false" />
+  <param name="point_filter_num" type="int" value="3" />
+  <param name="max_iteration" type="int" value="3" />
+  <param name="filter_size_surf" type="double" value="0.5" />
+  <param name="filter_size_map" type="double" value="0.5" />
+  <param name="cube_side_length" type="double" value="1000" />
+  <param name="runtime_pos_log_enable" type="bool" value="false" />
+
+  <node name="fastlio2_odom"
+        pkg="fast_lio"
+        type="fastlio_mapping"
+        launch-prefix="/opt/uav/base_stack/workspace/src/uav_base_bringup/scripts/wait_for_livox_ready.sh"
+        respawn="true"
+        respawn_delay="2"
+        output="screen" />
+
+  <node name="high_rate_odom_ekf"
+        pkg="uav_base_bringup"
+        type="high_rate_odom_ekf.py"
+        if="$(arg enable_high_rate_odom_ekf)"
+        respawn="true"
+        respawn_delay="2"
+        output="screen">
+    <param name="imu_topic" type="string" value="$(arg high_rate_odom_ekf_imu_topic)" />
+    <param name="odom_topic" type="string" value="$(arg high_rate_odom_ekf_odom_topic)" />
+    <param name="output_topic" type="string" value="$(arg high_rate_odom_ekf_output_topic)" />
+    <param name="output_frame_id" type="string" value="robot/odom" />
+    <param name="output_child_frame_id" type="string" value="base_link" />
+    <param name="position_cov" type="double" value="0.02" />
+    <param name="orientation_cov" type="double" value="0.02" />
+    <param name="gyro_noise" type="double" value="0.05" />
+    <param name="accel_noise" type="double" value="0.35" />
+    <param name="gyro_bias_random_walk" type="double" value="0.0005" />
+    <param name="accel_bias_random_walk" type="double" value="0.005" />
+    <param name="use_imu_accel_for_position" type="bool" value="false" />
+    <param name="odom_velocity_gain" type="double" value="0.85" />
+    <param name="velocity_random_walk" type="double" value="0.20" />
+    <param name="buffer_sec" type="double" value="1.0" />
+    <param name="max_replay_sec" type="double" value="0.75" />
+    <param name="reject_position_threshold_m" type="double" value="0.0" />
   </node>
 
   <node pkg="fastlio_to_mavros"
         type="fastlio_to_mavros"
         name="fastlio_to_mavros"
-        output="screen">
+        launch-prefix="/opt/uav/base_stack/workspace/src/uav_base_bringup/scripts/wait_for_lio_ready.sh"
+        output="screen"
+        respawn="true"
+        respawn_delay="2">
     <rosparam file="$(arg config_root)/fastlio_to_mavros/bridge.yaml" command="load" />
   </node>
 

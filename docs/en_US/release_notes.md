@@ -1,5 +1,34 @@
 # Release Notes
 
+## 0.1.3
+
+This release confirms the current E100 field firmware after the LiDAR timebase and high-rate odometry update.
+
+Main updates:
+
+- moves the active LiDAR odometry path to Fast-LIO2
+- forces Livox MID360 timestamps to the shared monotonic ROS timebase, preventing NTP/system-time corrections from breaking Fast-LIO after the device comes online
+- adds `high_rate_odom_ekf` to fuse Fast-LIO2 odometry with Livox IMU data and publish `/robot/ekf_odom`
+- connects `/robot/ekf_odom` into `fastlio_to_mavros`
+- publishes MAVROS vision pose data on `/mavros/vision_pose/pose` from the high-rate odometry stream
+- updates `fastlio_to_mavros` with configurable queue sizes, configurable publish rate, wall-clock loop timing, and callback-driven publishing
+- adds the current RealSense D435i, control gateway, media gateway, pointcloud gateway, planner, calibration, and validation surfaces used by the integrated E100 stack
+- adds stack and timebase validation scripts
+
+Validated runtime:
+
+- `/robot/ekf_odom` publishes with 5 ms input stamps
+- `/mavros/vision_pose/pose` follows the high-rate odometry stream and is subscribed by MAVROS
+- MAVROS remains connected and unarmed during validation
+- control gateway, media gateway, pointcloud gateway, planner, and RealSense services report healthy
+- validated runtime image: `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`
+
+Operational conclusion:
+
+- the current E100 firmware is confirmed for the shared-monotonic Fast-LIO2 + high-rate MAVROS odometry path
+- networking/NTP should no longer trigger automatic timestamp-domain switching in the LiDAR/Fast-LIO path
+- downstream APP, pointcloud, media, RealSense, and planner services are included in this integrated firmware repository state
+
 ## 0.1.2
 
 This release adds dual deployment modes on top of `0.1.1`, and also publishes the aligned prebuilt image tag `0.1.2`.
@@ -31,9 +60,9 @@ Main updates:
 - bundles the required GeographicLib `egm96-5` geoid dataset with the repository instead of downloading it separately during build
 - adds retry handling for the base `apt` dependency bootstrap path to reduce transient DNS or mirror failures
 - validated runtime chain:
-  `livox_lidar_publisher2`, `robot/dlio_odom`, `fastlio_to_mavros`, `mavros`
+  `livox_lidar_publisher2`, `fastlio2_odom`, `fastlio_to_mavros`, `mavros`
 - validated key topics:
-  `/robot/dlio/odom_node/odom`, `/mavros/vision_pose/pose`
+  `/robot/fastlio2/odom`, `/mavros/vision_pose/pose`
 
 Operational conclusion:
 

@@ -20,6 +20,7 @@ Eigen::Vector3d t_base_from_lidar(0, 0, 0);
 
 ros::Time latest_lio_stamp;
 ros::Time last_published_input_stamp;
+ros::Publisher pub_pose;
 
 bool init_flag = false;
 bool has_lio_odom = false;
@@ -27,6 +28,9 @@ bool has_px4_odom = false;
 bool use_lidar_extrinsic = false;
 
 int window_size = 8;
+int fastlio_queue_size = 400;
+int vision_queue_size = 100;
+double publish_rate_hz = 30.0;
 std::string fastlio_odom_topic = "/Odometry";
 std::string px4_odom_topic = "/mavros/local_position/odom";
 std::string vision_pose_topic = "/mavros/vision_pose/pose";
@@ -102,6 +106,44 @@ class SlidingWindowAverage {
 AngleUnwrapper yaw_unwrapper;
 SlidingWindowAverage sliding_yaw_avg(8);
 
+void publishVisionPose() {
+  Eigen::Vector3d p_in_use = p_lidar_body;
+  Eigen::Quaterniond q_in_use = q_lidar;
+  if (use_lidar_extrinsic) {
+    p_in_use = q_base_from_lidar * p_lidar_body + t_base_from_lidar;
+    q_in_use = (q_base_from_lidar * q_lidar).normalized();
+  }
+
+  if (stamp_source == "input" && !latest_lio_stamp.isZero() &&
+      latest_lio_stamp == last_published_input_stamp) {
+    return;
+  }
+
+  p_enu = q_init_ENU_from_LIO * p_in_use;
+  Eigen::Quaterniond q_enu =
+      (q_init_ENU_from_LIO * q_in_use).normalized();
+
+  geometry_msgs::PoseStamped vision;
+  if (stamp_source == "input" && !latest_lio_stamp.isZero()) {
+    vision.header.stamp = latest_lio_stamp;
+    last_published_input_stamp = latest_lio_stamp;
+  } else {
+    vision.header.stamp = ros::Time::now();
+  }
+  vision.header.frame_id = vision_frame_id;
+  vision.pose.position.x = p_enu.x();
+  vision.pose.position.y = p_enu.y();
+  vision.pose.position.z = p_enu.z();
+  vision.pose.orientation.x = q_enu.x();
+  vision.pose.orientation.y = q_enu.y();
+  vision.pose.orientation.z = q_enu.z();
+  vision.pose.orientation.w = q_enu.w();
+
+  pub_pose.publish(vision);
+  ROS_INFO_THROTTLE(1.0, "[fastlio_to_mavros] ENU pos: (%.3f %.3f %.3f)",
+                    p_enu.x(), p_enu.y(), p_enu.z());
+}
+
 void fastlioCallback(const nav_msgs::Odometry::ConstPtr& msg) {
   p_lidar_body = Eigen::Vector3d(msg->pose.pose.position.x,
                                  msg->pose.pose.position.y,
@@ -112,6 +154,9 @@ void fastlioCallback(const nav_msgs::Odometry::ConstPtr& msg) {
                                msg->pose.pose.orientation.z);
   latest_lio_stamp = msg->header.stamp;
   has_lio_odom = true;
+  if (init_flag) {
+    publishVisionPose();
+  }
 }
 
 void px4OdomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
@@ -130,6 +175,9 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh("~");
 
   nh.param("window_size", window_size, 8);
+  nh.param("fastlio_queue_size", fastlio_queue_size, 400);
+  nh.param("vision_queue_size", vision_queue_size, 100);
+  nh.param("publish_rate_hz", publish_rate_hz, 30.0);
   nh.param("fastlio_topic", fastlio_odom_topic, std::string("/Odometry"));
   nh.param("px4_odom_topic", px4_odom_topic, std::string("/mavros/local_position/odom"));
   nh.param("vision_topic", vision_pose_topic, std::string("/mavros/vision_pose/pose"));
@@ -150,13 +198,18 @@ int main(int argc, char** argv) {
   sliding_yaw_avg = SlidingWindowAverage(window_size);
 
   ros::Subscriber sub_lio =
-      nh.subscribe<nav_msgs::Odometry>(fastlio_odom_topic, 100, fastlioCallback);
+      nh.subscribe<nav_msgs::Odometry>(fastlio_odom_topic, fastlio_queue_size, fastlioCallback);
   ros::Subscriber sub_px4 =
       nh.subscribe<nav_msgs::Odometry>(px4_odom_topic, 5, px4OdomCallback);
-  ros::Publisher pub_pose =
-      nh.advertise<geometry_msgs::PoseStamped>(vision_pose_topic, 10);
+  pub_pose = nh.advertise<geometry_msgs::PoseStamped>(vision_pose_topic, vision_queue_size);
 
-  ros::Rate rate(30.0);
+  if (!std::isfinite(publish_rate_hz) || publish_rate_hz <= 0.0) {
+    publish_rate_hz = 30.0;
+  }
+  const double poll_rate_hz = publish_rate_hz < 200.0 ? 200.0 : publish_rate_hz * 5.0;
+  ROS_INFO("[fastlio_to_mavros] input=%s output=%s publish_rate=%.1fHz poll_rate=%.1fHz",
+           fastlio_odom_topic.c_str(), vision_pose_topic.c_str(), publish_rate_hz, poll_rate_hz);
+  ros::WallRate rate(poll_rate_hz);
   ros::Time start_time = ros::Time::now();
 
   while (ros::ok()) {
@@ -171,45 +224,6 @@ int main(int argc, char** argv) {
       init_flag = true;
       ROS_INFO("[fastlio_to_mavros] Init done. yaw_avg(deg)=%.2f",
                yaw_avg * 180.0 / M_PI);
-    }
-
-    if (init_flag && has_lio_odom) {
-      Eigen::Vector3d p_in_use = p_lidar_body;
-      Eigen::Quaterniond q_in_use = q_lidar;
-      if (use_lidar_extrinsic) {
-        p_in_use = q_base_from_lidar * p_lidar_body + t_base_from_lidar;
-        q_in_use = (q_base_from_lidar * q_lidar).normalized();
-      }
-
-      if (stamp_source == "input" && !latest_lio_stamp.isZero() &&
-          latest_lio_stamp == last_published_input_stamp) {
-        rate.sleep();
-        continue;
-      }
-
-      p_enu = q_init_ENU_from_LIO * p_in_use;
-      Eigen::Quaterniond q_enu =
-          (q_init_ENU_from_LIO * q_in_use).normalized();
-
-      geometry_msgs::PoseStamped vision;
-      if (stamp_source == "input" && !latest_lio_stamp.isZero()) {
-        vision.header.stamp = latest_lio_stamp;
-        last_published_input_stamp = latest_lio_stamp;
-      } else {
-        vision.header.stamp = ros::Time::now();
-      }
-      vision.header.frame_id = vision_frame_id;
-      vision.pose.position.x = p_enu.x();
-      vision.pose.position.y = p_enu.y();
-      vision.pose.position.z = p_enu.z();
-      vision.pose.orientation.x = q_enu.x();
-      vision.pose.orientation.y = q_enu.y();
-      vision.pose.orientation.z = q_enu.z();
-      vision.pose.orientation.w = q_enu.w();
-
-      pub_pose.publish(vision);
-      ROS_INFO_THROTTLE(1.0, "[fastlio_to_mavros] ENU pos: (%.3f %.3f %.3f)",
-                        p_enu.x(), p_enu.y(), p_enu.z());
     }
 
     rate.sleep();
