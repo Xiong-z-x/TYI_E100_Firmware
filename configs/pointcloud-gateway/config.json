@@ -40,11 +40,11 @@
     "localMapRetentionLimit": 16
   },
   "sources": {
-    "keyframeTopic": "/robot/fastlio2/pointcloud/keyframe",
-    "odomTopic": "/robot/fastlio2/odom",
+    "keyframeTopic": "/tyi/e100/fastlio2/pointcloud/keyframe",
+    "odomTopic": "/tyi/e100/fastlio2/odom",
     "plannerTrajectoryTopic": "/tyi_planner/predicted_path",
     "plannerStatusTopic": "/tyi_planner/status",
-    "liveTopic": "/robot/fastlio2/pointcloud/deskewed",
+    "liveTopic": "/tyi/e100/fastlio2/pointcloud/deskewed",
     "enableLiveLayer": false,
     "keyframePreSampleMaxPoints": 1200000,
     "livePreSampleMaxPoints": 70000,
@@ -81,6 +81,13 @@
       "liveMaxPoints": 100000,
       "updateHz": 4,
       "compression": "zlib"
+    },
+    {
+      "name": "local-view",
+      "mapMaxPoints": 60000,
+      "liveMaxPoints": 0,
+      "updateHz": 4,
+      "compression": "none"
     }
   ],
   "health": {

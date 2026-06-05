@@ -16,7 +16,7 @@ class LivoxToWorldCloud {
 public:
   LivoxToWorldCloud() : nh_(), pnh_("~") {
     pnh_.param<std::string>("livox_topic", livox_topic_, "/livox/lidar");
-    pnh_.param<std::string>("odom_topic", odom_topic_, "/robot/fastlio2/odom");
+    pnh_.param<std::string>("odom_topic", odom_topic_, "/tyi/e100/fastlio2/odom");
     pnh_.param<std::string>("output_topic", output_topic_, "/drone_0_planner/cloud");
     pnh_.param<std::string>("output_frame_id", output_frame_id_, "world");
     pnh_.param("point_stride", point_stride_, 6);

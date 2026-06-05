@@ -2,7 +2,7 @@ window_size: 8
 publish_rate_hz: 200.0
 fastlio_queue_size: 400
 vision_queue_size: 200
-fastlio_topic: /robot/ekf_odom
+fastlio_topic: /tyi/e100/ekf_odom
 px4_odom_topic: /mavros/local_position/odom
 vision_topic: /mavros/vision_pose/pose
 vision_frame_id: map

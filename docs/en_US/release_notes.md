@@ -1,5 +1,33 @@
 # Release Notes
 
+## 0.1.4
+
+This release records the current `uav-nano` firmware state and the high-rate EKF fusion optimization now used by the active flight stack.
+
+Main updates:
+
+- applies the Nano-specific MID360 serial/IP configuration and PX4 high-speed serial settings
+- keeps `flight-core`, `control-gateway`, and `pointcloud-gateway` as the default runtime services
+- leaves media and vision services disabled by default, while preserving their Compose profiles and configuration surfaces for later expansion
+- refines `high_rate_odom_ekf` to fuse FastLIO2 odometry with Livox IMU data for a higher-rate odometry stream
+- removes the EKF output rate cap so the output can follow the available IMU cadence instead of being limited by a fixed throttle
+- forwards the fused odometry stream to MAVROS as a high-rate vision-pose input
+- updates gateway, planner, and validation defaults around the optimized odometry path
+- cleans generated Python cache files and stale local Docker image tags from the board workspace
+
+Validated runtime:
+
+- `flight-core`, `control-gateway`, and `pointcloud-gateway` report healthy on `uav-nano`
+- MAVROS is connected to PX4 over the configured high-speed serial link
+- the EKF output is active at high rate and MAVROS receives the corresponding vision-pose stream
+- optional media and vision services remain available through profiles but are not part of the default Nano bring-up
+
+Operational conclusion:
+
+- the repository can now be maintained from GitHub as the active Nano firmware baseline
+- the LIO-to-MAVROS path is suitable for higher-rate vision odometry input to PX4
+- optional camera/media/VLM functionality remains an extension surface instead of a default runtime dependency
+
 ## 0.1.3
 
 This release confirms the current E100 field firmware after the LiDAR timebase and high-rate odometry update.
@@ -8,26 +36,26 @@ Main updates:
 
 - moves the active LiDAR odometry path to Fast-LIO2
 - forces Livox MID360 timestamps to the shared monotonic ROS timebase, preventing NTP/system-time corrections from breaking Fast-LIO after the device comes online
-- adds `high_rate_odom_ekf` to fuse Fast-LIO2 odometry with Livox IMU data and publish `/robot/ekf_odom`
-- connects `/robot/ekf_odom` into `fastlio_to_mavros`
-- publishes MAVROS vision pose data on `/mavros/vision_pose/pose` from the high-rate odometry stream
+- adds `high_rate_odom_ekf` to fuse Fast-LIO2 odometry with Livox IMU data
+- connects the fused high-rate odometry stream into `fastlio_to_mavros`
+- publishes MAVROS vision pose data from the high-rate odometry stream
 - updates `fastlio_to_mavros` with configurable queue sizes, configurable publish rate, wall-clock loop timing, and callback-driven publishing
-- adds the current RealSense D435i, control gateway, media gateway, pointcloud gateway, planner, calibration, and validation surfaces used by the integrated E100 stack
+- adds the current control gateway, pointcloud gateway, optional media/planner surfaces, calibration, and validation files used by the integrated E100 stack
 - adds stack and timebase validation scripts
 
 Validated runtime:
 
-- `/robot/ekf_odom` publishes with 5 ms input stamps
-- `/mavros/vision_pose/pose` follows the high-rate odometry stream and is subscribed by MAVROS
+- fused odometry publishes with 5 ms input stamps
+- MAVROS vision pose follows the high-rate odometry stream and is subscribed by MAVROS
 - MAVROS remains connected and unarmed during validation
-- control gateway, media gateway, pointcloud gateway, planner, and RealSense services report healthy
+- control gateway, pointcloud gateway, and optional gateway/planner services report healthy when enabled
 - validated runtime image: `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`
 
 Operational conclusion:
 
 - the current E100 firmware is confirmed for the shared-monotonic Fast-LIO2 + high-rate MAVROS odometry path
 - networking/NTP should no longer trigger automatic timestamp-domain switching in the LiDAR/Fast-LIO path
-- downstream APP, pointcloud, media, RealSense, and planner services are included in this integrated firmware repository state
+- downstream APP, pointcloud, optional media/vision, and planner integration surfaces are included in this firmware repository state
 
 ## 0.1.2
 

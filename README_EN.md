@@ -19,12 +19,15 @@ Current version: [VERSION](VERSION)
 
 - source-visible deployment package for Ubuntu 20.04 + ROS1 Noetic
 - single-machine configuration entry through [machine.env](machine.env)
-- Docker-based bring-up for `livox_ros_driver2`, `fast_lio`, `fastlio_to_mavros`, `mavros`, `mavlink`, and `uav_base_bringup`
+- Docker-based bring-up for `livox_ros_driver2`, `fast_lio`, `high_rate_odom_ekf`, `fastlio_to_mavros`, `mavros`, `mavlink`, and `uav_base_bringup`
+- default services for `flight-core`, `control-gateway`, and `pointcloud-gateway`, with media / vision / planner kept as optional Compose profile extensions
 - product firmware deployment and operation scripts
 
 ## Runtime Pipeline
 
-`Livox MID360 -> FastLIO2 -> fastlio_to_mavros -> MAVROS -> PX4`
+`Livox MID360 -> FastLIO2 + Livox IMU EKF -> fastlio_to_mavros -> MAVROS -> PX4`
+
+The current Nano maintenance state includes the MID360 machine parameters, the high-speed PX4 serial link, and the high-rate EKF fusion update. The EKF node fuses lower-rate FastLIO2 odometry with high-rate Livox IMU data, providing MAVROS with a more continuous vision-pose input and improving the real-time path from LIO to the flight controller.
 
 ## Quick Start
 
@@ -74,9 +77,11 @@ For a first-time bring-up with the fewest decisions, use this order:
 Notes:
 
 - `deploy.sh` pulls the prebuilt ACR image and starts it by default
+- `deploy.sh` builds the default gateway images locally and does not depend on hidden external source packages
 - `deploy.sh --build` switches to local source-build mode
 - the build now includes the required GeographicLib geoid locally and retries the base `apt` bootstrap path
 - machine-specific differences are expected to stay within `machine.env`
+- `media-gateway` and `vision-gateway` are disabled by default and should be enabled only through their Compose profiles when the hardware/feature is present
 
 ## Common Configuration Entry Points
 
@@ -86,6 +91,8 @@ Notes:
   bridge topic and frame settings when downstream control integration is needed
 - [configs/fastlio2](configs/fastlio2)
   FastLIO2 runtime parameters
+- [workspace/src/uav_base_bringup/scripts/high_rate_odom_ekf.py](workspace/src/uav_base_bringup/scripts/high_rate_odom_ekf.py)
+  high-rate fusion node for FastLIO2 odometry and Livox IMU data
 - [configs/mavros](configs/mavros)
   MAVROS plugin and FCU parameters
 

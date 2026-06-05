@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import math
 import threading
+import time
 from collections import deque
 
 import numpy as np
@@ -87,14 +88,19 @@ def msg_quat_to_array(q):
 class HighRateOdomEkf:
     def __init__(self):
         self.imu_topic = rospy.get_param("~imu_topic", "/livox/imu")
-        self.odom_topic = rospy.get_param("~odom_topic", "/robot/fastlio2/odom")
-        self.output_topic = rospy.get_param("~output_topic", "/robot/ekf_odom")
+        self.odom_topic = rospy.get_param("~odom_topic", "/tyi/e100/fastlio2/odom")
+        self.output_topic = rospy.get_param("~output_topic", "/tyi/e100/ekf_odom")
         self.publish_tf = bool(rospy.get_param("~publish_tf", False))
         self.output_child_frame_id = rospy.get_param("~output_child_frame_id", "")
         self.output_frame_id = rospy.get_param("~output_frame_id", "")
-        self.buffer_sec = float(rospy.get_param("~buffer_sec", 1.0))
-        self.max_replay_sec = float(rospy.get_param("~max_replay_sec", 0.75))
+        self.buffer_sec = float(rospy.get_param("~buffer_sec", 3.0))
+        self.max_replay_sec = float(rospy.get_param("~max_replay_sec", 2.0))
         self.max_dt = float(rospy.get_param("~max_imu_dt_sec", 0.05))
+        self.max_lio_age_sec = float(rospy.get_param("~max_lio_age_sec", 2.0))
+        self.imu_queue_size = int(rospy.get_param("~imu_queue_size", 80))
+        self.odom_queue_size = int(rospy.get_param("~odom_queue_size", 10))
+        self.publish_queue_size = int(rospy.get_param("~publish_queue_size", 100))
+        self.publish_rate_hz = float(rospy.get_param("~publish_rate_hz", 0.0))
         self.reject_position_threshold_m = float(rospy.get_param("~reject_position_threshold_m", 2.0))
         self.use_imu_accel_for_position = bool(rospy.get_param("~use_imu_accel_for_position", False))
         self.odom_velocity_gain = float(rospy.get_param("~odom_velocity_gain", 0.85))
@@ -142,16 +148,30 @@ class HighRateOdomEkf:
         self.buffer = deque()
         self.last_odom_stamp = None
         self.last_odom_position = None
+        self.last_published_stamp = None
+        self.lio_stale = False
 
-        self.pub = rospy.Publisher(self.output_topic, Odometry, queue_size=200)
+        self.pub = rospy.Publisher(self.output_topic, Odometry, queue_size=self.publish_queue_size, tcp_nodelay=True)
         self.tf_pub = tf2_ros.TransformBroadcaster() if self.publish_tf else None
-        self.imu_sub = rospy.Subscriber(self.imu_topic, Imu, self.on_imu, queue_size=400, tcp_nodelay=True)
-        self.odom_sub = rospy.Subscriber(self.odom_topic, Odometry, self.on_odom, queue_size=80, tcp_nodelay=True)
+        self.imu_sub = rospy.Subscriber(self.imu_topic, Imu, self.on_imu, queue_size=self.imu_queue_size, tcp_nodelay=True)
+        self.odom_sub = rospy.Subscriber(self.odom_topic, Odometry, self.on_odom, queue_size=self.odom_queue_size, tcp_nodelay=True)
+        self.publish_thread = None
+        if self.publish_rate_hz > 0.0:
+            self.publish_thread = threading.Thread(target=self.publish_loop, daemon=True)
+            self.publish_thread.start()
         rospy.loginfo(
-            "high_rate_odom_ekf started: imu=%s odom=%s output=%s",
+            "high_rate_odom_ekf started: imu=%s odom=%s output=%s max_lio_age=%.3fs "
+            "buffer=%.3fs replay=%.3fs publish_rate=%.1fHz queues=(imu=%d odom=%d pub=%d)",
             self.imu_topic,
             self.odom_topic,
             self.output_topic,
+            self.max_lio_age_sec,
+            self.buffer_sec,
+            self.max_replay_sec,
+            self.publish_rate_hz,
+            self.imu_queue_size,
+            self.odom_queue_size,
+            self.publish_queue_size,
         )
 
     def snapshot(self, stamp, imu_msg):
@@ -254,6 +274,40 @@ class HighRateOdomEkf:
                     return derived
         return None
 
+    def odom_age_against_imu_or_now(self, odom_stamp):
+        reference_stamp = self.last_imu_stamp if self.last_imu_stamp is not None else rospy.Time.now()
+        return (reference_stamp - odom_stamp).to_sec()
+
+    def mark_lio_stale(self, age, context):
+        self.lio_stale = True
+        rospy.logwarn_throttle(
+            1.0,
+            "high_rate_odom_ekf suppressing publish: %s LIO age %.3fs > %.3fs",
+            context,
+            age,
+            self.max_lio_age_sec,
+        )
+
+    def initialize_from_odom(self, msg, stamp, reason):
+        self.p = np.array(
+            [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z],
+            dtype=float,
+        )
+        self.v = np.array(
+            [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z],
+            dtype=float,
+        )
+        self.q = msg_quat_to_array(msg.pose.pose.orientation)
+        self.initialized = True
+        self.lio_stale = False
+        self.last_imu_stamp = None
+        self.last_odom_stamp = stamp
+        self.last_odom_position = self.p.copy()
+        self.buffer.clear()
+        self.P = np.eye(15) * 0.01
+        self.P[3:6, 3:6] *= 10.0
+        rospy.loginfo("high_rate_odom_ekf %s from %s at %.3f", reason, self.odom_topic, stamp.to_sec())
+
     def correct_with_odom(self, msg):
         stamp = msg.header.stamp if msg.header.stamp != rospy.Time(0) else rospy.Time.now()
         z_p = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z], dtype=float)
@@ -296,20 +350,24 @@ class HighRateOdomEkf:
             stamp = msg.header.stamp if msg.header.stamp != rospy.Time(0) else rospy.Time.now()
             self.frame_id = self.output_frame_id or msg.header.frame_id or self.frame_id
             self.child_frame_id = self.output_child_frame_id or msg.child_frame_id or self.child_frame_id
+            odom_age = self.odom_age_against_imu_or_now(stamp)
+            if odom_age > self.max_lio_age_sec:
+                if not self.initialized or self.lio_stale:
+                    rospy.logwarn_throttle(
+                        1.0,
+                        "high_rate_odom_ekf ignoring stale init/reinit odom: age %.3fs > %.3fs",
+                        odom_age,
+                        self.max_lio_age_sec,
+                    )
+                else:
+                    self.mark_lio_stale(odom_age, "delayed odom update")
+                return
+
             if not self.initialized:
-                self.p = np.array(
-                    [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z],
-                    dtype=float,
-                )
-                self.v = np.array(
-                    [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z],
-                    dtype=float,
-                )
-                self.q = msg_quat_to_array(msg.pose.pose.orientation)
-                self.initialized = True
-                self.last_odom_stamp = stamp
-                self.last_odom_position = self.p.copy()
-                rospy.loginfo("high_rate_odom_ekf initialized from %s at %.3f", self.odom_topic, stamp.to_sec())
+                self.initialize_from_odom(msg, stamp, "initialized")
+                return
+            if self.lio_stale:
+                self.initialize_from_odom(msg, stamp, "reinitialized after stale LIO")
                 return
 
             if self.buffer:
@@ -318,7 +376,11 @@ class HighRateOdomEkf:
                     if self.buffer[i]["stamp"] <= stamp:
                         idx = i
                         break
-                if idx is not None and (self.buffer[-1]["stamp"] - stamp).to_sec() <= self.max_replay_sec:
+                if idx is None:
+                    rospy.logwarn_throttle(1.0, "high_rate_odom_ekf ignored odom older than replay buffer")
+                    return
+                replay_lag = (self.buffer[-1]["stamp"] - stamp).to_sec()
+                if replay_lag <= self.max_replay_sec:
                     replay = list(self.buffer)[idx + 1 :]
                     self.restore(self.buffer[idx])
                     self.correct_with_odom(msg)
@@ -332,6 +394,13 @@ class HighRateOdomEkf:
                     keep = list(self.buffer)[: idx + 1] + new_tail
                     self.buffer = deque(keep)
                     return
+                rospy.logwarn_throttle(
+                    1.0,
+                    "high_rate_odom_ekf ignored delayed odom outside replay window: lag %.3fs > %.3fs",
+                    replay_lag,
+                    self.max_replay_sec,
+                )
+                return
 
             self.correct_with_odom(msg)
 
@@ -343,7 +412,14 @@ class HighRateOdomEkf:
             if self.last_imu_stamp is None:
                 self.last_imu_stamp = stamp
                 self.buffer.append(self.snapshot(stamp, msg))
-                self.publish(stamp)
+                if self.last_odom_stamp is None:
+                    return
+                lio_age = (stamp - self.last_odom_stamp).to_sec()
+                if lio_age > self.max_lio_age_sec:
+                    self.mark_lio_stale(lio_age, "first IMU after init")
+                    return
+                if self.publish_thread is None:
+                    self.publish(stamp)
                 return
 
             dt = (stamp - self.last_imu_stamp).to_sec()
@@ -353,9 +429,37 @@ class HighRateOdomEkf:
             self.predict_with_imu(msg, dt)
             self.buffer.append(self.snapshot(stamp, msg))
             self.trim_buffer(stamp)
-            self.publish(stamp)
+            if self.last_odom_stamp is None:
+                return
+            lio_age = (stamp - self.last_odom_stamp).to_sec()
+            if lio_age > self.max_lio_age_sec:
+                self.mark_lio_stale(lio_age, "IMU propagation")
+                return
+            if self.publish_thread is None:
+                self.publish(stamp)
+
+    def publish_loop(self):
+        period = 1.0 / self.publish_rate_hz
+        next_time = time.monotonic() + period
+        while not rospy.is_shutdown():
+            sleep_time = next_time - time.monotonic()
+            if sleep_time > 0.0:
+                time.sleep(sleep_time)
+            else:
+                next_time = time.monotonic()
+            next_time += period
+            with self.lock:
+                if not self.initialized or self.last_imu_stamp is None or self.last_odom_stamp is None:
+                    continue
+                lio_age = (self.last_imu_stamp - self.last_odom_stamp).to_sec()
+                if lio_age > self.max_lio_age_sec:
+                    self.mark_lio_stale(lio_age, "timer publish")
+                    continue
+                self.publish(self.last_imu_stamp)
 
     def publish(self, stamp):
+        if self.last_published_stamp is not None and stamp <= self.last_published_stamp:
+            return
         msg = Odometry()
         msg.header.stamp = stamp
         msg.header.frame_id = self.frame_id
@@ -384,6 +488,7 @@ class HighRateOdomEkf:
         msg.twist.covariance = tuple(twist_cov.reshape(-1).tolist())
 
         self.pub.publish(msg)
+        self.last_published_stamp = stamp
         if self.tf_pub is not None:
             tf_msg = TransformStamped()
             tf_msg.header = msg.header

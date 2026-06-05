@@ -29,12 +29,12 @@ publish:
     scan_publish_en: true
     dense_publish_en: false
     scan_bodyframe_pub_en: true
-    odom_topic: "/robot/fastlio2/odom"
-    path_topic: "/robot/fastlio2/path"
-    cloud_topic: "/robot/fastlio2/pointcloud/keyframe"
-    body_cloud_topic: "/robot/fastlio2/pointcloud/deskewed"
-    effect_cloud_topic: "/robot/fastlio2/cloud_effected"
-    map_cloud_topic: "/robot/fastlio2/map"
+    odom_topic: "/tyi/e100/fastlio2/odom"
+    path_topic: "/tyi/e100/fastlio2/path"
+    cloud_topic: "/tyi/e100/fastlio2/pointcloud/keyframe"
+    body_cloud_topic: "/tyi/e100/fastlio2/pointcloud/deskewed"
+    effect_cloud_topic: "/tyi/e100/fastlio2/cloud_effected"
+    map_cloud_topic: "/tyi/e100/fastlio2/map"
     odom_frame_id: "robot/odom"
     body_frame_id: "robot/base_link"
     queue_size: 10

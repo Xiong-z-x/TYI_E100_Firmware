@@ -42,7 +42,7 @@ echo "livox_lidar_header:"
 timeout 3 rostopic echo -n 1 /livox/lidar/header
 
 echo "lio_odom_header:"
-timeout 3 rostopic echo -n 1 /robot/fastlio2/odom/header
+timeout 3 rostopic echo -n 1 /tyi/e100/fastlio2/odom/header
 
 echo "vision_pose_header:"
 timeout 3 rostopic echo -n 1 /mavros/vision_pose/pose/header

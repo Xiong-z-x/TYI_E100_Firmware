@@ -23,7 +23,7 @@ docker pull crpi-zpvbhgsm3t97idht.cn-hangzhou.personal.cr.aliyuncs.com/tyi-tech/
 `deploy.sh` performs three actions in order:
 
 - applies machine-specific UART, MID360, and host NIC settings
-- pulls the prebuilt Docker image by default
+- pulls the prebuilt `flight-core` Docker image by default and builds the default gateway images locally
 - starts the runtime container in the background
 
 `check_host.sh` verifies that Docker, Docker Compose, and the required configuration files are present before deployment.
@@ -31,7 +31,7 @@ docker pull crpi-zpvbhgsm3t97idht.cn-hangzhou.personal.cr.aliyuncs.com/tyi-tech/
 Expected result after `deploy.sh`:
 
 - the prebuilt runtime image is pulled locally
-- the `base-stack` service is started in the background
+- `flight-core`, `control-gateway`, and `pointcloud-gateway` are started in the background
 - the runtime can be inspected through `status.sh`, `logs.sh`, and `enter.sh`
 
 To switch to a local source build:
@@ -48,6 +48,7 @@ Additional notes:
 - the default runtime path uses the prebuilt image from ACR for faster deployment
 - the required GeographicLib geoid file is bundled with the repository, so this resource is not fetched from SourceForge during build
 - the image bootstrap path retries base `apt` installation when transient network failures occur
+- `media-gateway`, `vision-gateway`, and `planner` are optional profiles and are not part of the default Nano bring-up
 
 ## After deployment
 

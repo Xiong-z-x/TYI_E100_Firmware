@@ -1,15 +1,26 @@
 # Changelog
 
+## 0.1.4
+
+- Updated the repository to the current `uav-nano` maintenance state with Nano-specific MID360 configuration and PX4 serial parameters
+- Kept `flight-core`, `control-gateway`, and `pointcloud-gateway` as the default runtime set, while moving media and vision services behind optional Compose profiles
+- Refined `high_rate_odom_ekf` for the active Nano stack, fusing FastLIO2 odometry with high-rate Livox IMU data without adding gravity-calibration or landed-state side effects
+- Removed the EKF output rate cap so the fused odometry can follow the available IMU cadence and provide a higher-rate MAVROS vision-pose input
+- Added a MAVROS status helper for controlled state checks during board validation
+- Updated gateway and planner defaults to consume the optimized odometry stream and keep optional subsystems cleanly disabled until enabled by profile
+- Cleaned generated Python cache files and stale local Docker image tags from the board workspace
+- Validated on `uav-nano`: flight core, control gateway, and pointcloud gateway report healthy; MAVROS is connected; high-rate EKF output and MAVROS vision-pose forwarding are active
+
 ## 0.1.3
 
 - Replaced the legacy DLIO runtime path with Fast-LIO2 as the active LiDAR odometry source for E100
 - Forced the Livox MID360 driver onto the shared monotonic ROS timebase so NTP/system-time corrections after networking no longer jump sensor stamps
-- Added `high_rate_odom_ekf`, fusing 10-20 Hz Fast-LIO2 odometry with 200 Hz Livox IMU data and publishing `/robot/ekf_odom`
-- Switched `fastlio_to_mavros` to consume `/robot/ekf_odom` and publish `/mavros/vision_pose/pose` with 200 Hz input stamps
+- Added `high_rate_odom_ekf`, fusing 10-20 Hz Fast-LIO2 odometry with 200 Hz Livox IMU data
+- Switched `fastlio_to_mavros` to consume the fused high-rate odometry stream and forward MAVROS vision-pose data with high-rate input stamps
 - Updated `fastlio_to_mavros` to support configurable queues/rates and callback-driven publishing so high-rate odometry is not collapsed by the main loop
-- Added RealSense D435i, control gateway, media gateway, pointcloud gateway, planner, calibration, and validation surfaces used by the current E100 integrated stack
+- Added control gateway, pointcloud gateway, optional media/planner surfaces, calibration, and validation files used by the integrated E100 stack
 - Added validation scripts for stack health and timebase checks
-- Validated on `uav-nx`: shared monotonic clock remains active, `/robot/ekf_odom` uses 5 ms stamps, MAVROS receives the high-rate vision pose stream, and the gateway stack reports healthy
+- Validated on board: shared monotonic clock remains active, fused odometry uses 5 ms stamps, MAVROS receives the high-rate vision pose stream, and the gateway stack reports healthy
 - Captured the validated runtime as `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`
 
 ## 0.1.2

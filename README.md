@@ -19,12 +19,15 @@ English version: [README_EN.md](README_EN.md)
 
 - 面向 Ubuntu 20.04 + ROS1 Noetic 的可见源码部署包
 - 通过 [machine.env](machine.env) 收敛机型差异配置
-- 基于 Docker 的 `livox_ros_driver2`、`fast_lio`、`fastlio_to_mavros`、`mavros`、`mavlink`、`uav_base_bringup` 启动能力
+- 基于 Docker 的 `livox_ros_driver2`、`fast_lio`、`high_rate_odom_ekf`、`fastlio_to_mavros`、`mavros`、`mavlink`、`uav_base_bringup` 启动能力
+- 默认启用 `flight-core`、`control-gateway`、`pointcloud-gateway`，并保留 media / vision / planner 的 profile 扩展入口
 - 面向产品固件发布的部署与运维脚本
 
 ## 运行链路
 
-`Livox MID360 -> FastLIO2 -> fastlio_to_mavros -> MAVROS -> PX4`
+`Livox MID360 -> FastLIO2 + Livox IMU EKF -> fastlio_to_mavros -> MAVROS -> PX4`
+
+当前 Nano 维护状态已完成 MID360 机型参数、PX4 串口高速链路和 EKF 高频融合优化。EKF 节点使用 FastLIO2 低频雷达里程计与 Livox IMU 高频数据融合，向 MAVROS 提供更连续的视觉位姿输入，以提升 LIO 输出到飞控侧的实时性。
 
 ## 快速开始
 
@@ -73,11 +76,12 @@ bash ./scripts/enter.sh
 
 说明：
 
-- `deploy.sh` 会直接基于当前仓库源码构建镜像，不依赖外部隐藏源码包
 - `deploy.sh` 默认直接拉取 ACR 预编译镜像并启动
-- `deploy.sh --build` 会切换到本地源码构建模式
+- `deploy.sh` 会本地构建默认网关镜像，不依赖外部隐藏源码包
+- `deploy.sh --build` 会切换到完整本地源码构建模式
 - 构建阶段已内置 GeographicLib 关键 geoid 资源，并对基础 `apt` 安装增加重试处理
 - 机型差异默认通过 `machine.env` 收敛，不需要手动改动多个配置文件
+- `media-gateway` 和 `vision-gateway` 默认关闭，需要时通过 Compose profile 单独启用
 
 ## 常用配置入口
 
@@ -87,6 +91,8 @@ bash ./scripts/enter.sh
   后续如需接入控制桥接，可在此调整桥接话题与参考坐标系
 - [configs/fastlio2](configs/fastlio2)
   FastLIO2 运行参数
+- [workspace/src/uav_base_bringup/scripts/high_rate_odom_ekf.py](workspace/src/uav_base_bringup/scripts/high_rate_odom_ekf.py)
+  FastLIO2 里程计与 Livox IMU 的高频融合节点
 - [configs/mavros](configs/mavros)
   MAVROS 插件与 FCU 参数
 

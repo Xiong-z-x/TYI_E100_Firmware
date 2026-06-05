@@ -4,6 +4,7 @@ project(uav_base_bringup)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   geometry_msgs
+  mavros_msgs
   nav_msgs
   rosgraph_msgs
   sensor_msgs
@@ -15,6 +16,7 @@ catkin_package()
 catkin_install_python(PROGRAMS
   scripts/shared_timebase_clock.py
   scripts/high_rate_odom_ekf.py
+  scripts/mavros_status_control.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

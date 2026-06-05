@@ -35,6 +35,7 @@ services:
       - ./docker/runtime/entrypoint.sh:/opt/uav/base_stack/docker/runtime/entrypoint.sh:ro
       - ./workspace/src/uav_base_bringup/launch/base_stack.launch:/opt/uav/base_stack/workspace/src/uav_base_bringup/launch/base_stack.launch:ro
       - ./workspace/src/uav_base_bringup/scripts:/opt/uav/base_stack/workspace/src/uav_base_bringup/scripts:ro
+      - ./workspace/src/uav_base_bringup/scripts/high_rate_odom_ekf.py:/opt/uav/base_stack/workspace/install_isolated/lib/uav_base_bringup/high_rate_odom_ekf.py:ro
       - ./logs:/opt/uav/logs
       - ./state/timebase:/opt/tyi/timebase
       - /tmp/.X11-unix:/tmp/.X11-unix
@@ -90,6 +91,8 @@ services:
       - ./logs/pointcloud-gateway:/opt/tyi/logs/pointcloud-gateway
       - ./state/timebase:/opt/tyi/timebase:ro
   media-gateway:
+    profiles:
+      - media
     image: ${MEDIA_GATEWAY_IMAGE:-tyi/media-gateway:0.1.0-local}
     container_name: ${MEDIA_GATEWAY_CONTAINER_NAME:-media-gateway}
     network_mode: host
@@ -113,3 +116,18 @@ services:
       - /run/udev:/run/udev:ro
     device_cgroup_rules:
       - 'c 81:* rmw'
+  vision-gateway:
+    profiles:
+      - vision
+    image: ${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:0.1.0-local}
+    container_name: ${VISION_GATEWAY_CONTAINER_NAME:-vision-gateway}
+    network_mode: host
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      VISION_GATEWAY_HTTP_PORT: ${VISION_GATEWAY_HTTP_PORT:-8765}
+      VISION_GATEWAY_CONFIG_PATH: /opt/uav/configs/vision-gateway/config.json
+    volumes:
+      - ./configs:/opt/uav/configs:ro
+      - ./logs/vision-gateway:/opt/tyi/logs/vision-gateway

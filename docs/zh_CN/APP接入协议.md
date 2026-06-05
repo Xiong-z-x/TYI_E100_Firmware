@@ -1,5 +1,7 @@
 # APP 接入协议
 
+本文描述 APP 通过 `control-gateway` 接入设备的协议。视频、语言导航和点选导航章节仅在对应的 media / vision / planner 扩展 profile 启用后适用；Nano 默认飞行链路不依赖这些可选服务。
+
 ## 接入顺序
 
 1. 通过 UDP `19001` 发送 `discover` 做局域网发现。

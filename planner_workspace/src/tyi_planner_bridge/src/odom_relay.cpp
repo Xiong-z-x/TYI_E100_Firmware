@@ -4,7 +4,7 @@
 class OdomRelay {
 public:
   OdomRelay() : nh_(), pnh_("~") {
-    pnh_.param<std::string>("input_topic", input_topic_, "/robot/fastlio2/odom");
+    pnh_.param<std::string>("input_topic", input_topic_, "/tyi/e100/fastlio2/odom");
     pnh_.param<std::string>("output_topic", output_topic_, "/drone_0_visual_slam/odom");
     pnh_.param<std::string>("output_frame_id", output_frame_id_, "world");
     pnh_.param<std::string>("output_child_frame_id", output_child_frame_id_, "body");

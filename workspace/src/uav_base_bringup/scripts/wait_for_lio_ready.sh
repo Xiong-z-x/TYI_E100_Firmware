@@ -5,7 +5,7 @@ wait_timeout="${LIO_ODOM_WAIT_TIMEOUT_SEC:-60}"
 rate_sample_secs="${LIO_ODOM_RATE_SAMPLE_SEC:-4}"
 odom_min_hz="${LIO_ODOM_MIN_HZ:-20}"
 settle_secs="${LIO_ODOM_STABILIZE_SEC:-2}"
-odom_topic="${LIO_ODOM_TOPIC:-/robot/fastlio2/odom}"
+odom_topic="${LIO_ODOM_TOPIC:-/tyi/e100/fastlio2/odom}"
 
 echo "Waiting for LiDAR odometry before starting $*" >&2
 

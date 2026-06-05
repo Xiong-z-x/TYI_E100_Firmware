@@ -1,6 +1,6 @@
 <launch>
   <arg name="drone_id" default="0" />
-  <arg name="odom_topic" default="/robot/fastlio2/odom" />
+  <arg name="odom_topic" default="/tyi/e100/fastlio2/odom" />
   <arg name="livox_topic" default="/livox/lidar" />
   <arg name="cmd_output_topic" default="/tyi_planner/mavros/setpoint_raw/local_shadow" />
   <arg name="enable_acceleration" default="false" />

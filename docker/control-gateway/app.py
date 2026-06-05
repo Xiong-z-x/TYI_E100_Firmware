@@ -447,6 +447,9 @@ class EventBroker:
 class StateStore:
     def __init__(self, config: Dict[str, Any], broker: EventBroker) -> None:
         self.config = config
+        features_cfg = config.setdefault("features", {})
+        media_feature_cfg = features_cfg.setdefault("mediaGateway", {})
+        self.media_enabled = bool(media_feature_cfg.get("enabled", True))
         self.broker = broker
         self.lock = threading.Lock()
         self.ros_ready = False
@@ -1174,15 +1177,16 @@ class StateStore:
         pointcloud_age = None if self.last_pointcloud_update_at is None else now - self.last_pointcloud_update_at
         system_age = None if self.last_system_update_at is None else now - self.last_system_update_at
         flight_stale = flight_age is None or flight_age > flight_stale_sec
-        media_stale = media_age is None or media_age > media_stale_sec
+        media_stale = self.media_enabled and (media_age is None or media_age > media_stale_sec)
         pointcloud_stale = pointcloud_age is None or pointcloud_age > pointcloud_stale_sec
         system_stale = system_age is None or system_age > system_stale_sec
         ros_ok = self.ros_ready and self.ros_error is None
-        media_ok = self.media_ready and self.media_error is None
+        media_ok = (not self.media_enabled) or (self.media_ready and self.media_error is None)
         return {
             "ok": ros_ok and media_ok and not flight_stale and not media_stale and not system_stale,
             "rosReady": self.ros_ready,
             "rosError": self.ros_error,
+            "mediaEnabled": self.media_enabled,
             "mediaReady": self.media_ready,
             "mediaError": self.media_error,
             "pointcloudReady": self.pointcloud_ready,
@@ -1270,6 +1274,9 @@ class MediaClient:
             return json.loads(data.decode("utf-8"))
 
     def refresh_state(self) -> None:
+        if not self.store.media_enabled:
+            self.store.update_media({"ok": False, "enabled": False, "availableProfiles": []})
+            return
         try:
             payload = self.request("GET", "/v1/cameras", timeout_sec=5)
             self.store.update_media(payload)
@@ -3584,9 +3591,9 @@ class RosCollector(threading.Thread):
             rospy.Subscriber("/mavros/setpoint_position/local", PoseStamped, on_position_setpoint, queue_size=50)
             rospy.Subscriber("/mavros/setpoint_raw/local", PositionTarget, on_raw_setpoint, queue_size=50)
             rospy.Subscriber("/mavros/setpoint_velocity/cmd_vel", TwistStamped, on_velocity_setpoint, queue_size=50)
-            rospy.Subscriber("/robot/fastlio2/odom", Odometry, on_lio, queue_size=10)
+            rospy.Subscriber("/tyi/e100/fastlio2/odom", Odometry, on_lio, queue_size=10)
             rospy.Subscriber(
-                str(self.store.config.get("navigation", {}).get("lidarPixelProjection", {}).get("pointTopic", "/robot/fastlio2/pointcloud/deskewed")),
+                str(self.store.config.get("navigation", {}).get("lidarPixelProjection", {}).get("pointTopic", "/tyi/e100/fastlio2/pointcloud/deskewed")),
                 PointCloud2,
                 on_navigation_projection_cloud,
                 queue_size=1,
@@ -4410,7 +4417,11 @@ def main() -> None:
     RosCollector(store).start()
     RosFreshnessWatchdog(store).start()
     DiscoveryServer(store).start()
-    MediaPoller(media_client).start()
+    if store.media_enabled:
+        MediaPoller(media_client).start()
+    else:
+        store.update_media({"ok": False, "enabled": False, "availableProfiles": []})
+        store.append_log("control-gateway", "info", "media gateway feature is disabled; media health is optional")
     PointCloudPoller(pointcloud_client).start()
     SystemPoller(store).start()
     SnapshotBroadcaster(store, broker).start()

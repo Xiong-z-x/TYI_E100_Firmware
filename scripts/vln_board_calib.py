@@ -521,7 +521,7 @@ def main() -> int:
     capture.add_argument("--debug-image", default="/opt/tyi/logs/realsense-dev/board_debug_current.jpg")
     capture.add_argument("--locator-retries", type=int, default=3)
     capture.add_argument("--locator-json", default="")
-    capture.add_argument("--lidar-topic", default="/robot/fastlio2/pointcloud/deskewed")
+    capture.add_argument("--lidar-topic", default="/tyi/e100/fastlio2/pointcloud/deskewed")
     capture.add_argument("--lidar-scans", type=int, default=4)
     capture.add_argument("--lidar-min-point-count", type=int, default=80)
     capture.add_argument("--lidar-min-verticality", type=float, default=0.95)

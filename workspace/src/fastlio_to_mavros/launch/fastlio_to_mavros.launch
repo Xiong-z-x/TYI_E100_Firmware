@@ -4,7 +4,7 @@
 
   <node pkg="fastlio_to_mavros" type="fastlio_to_mavros" name="fastlio_to_mavros" output="screen">
     <param name="window_size" value="8"/>
-    <param name="fastlio_topic" value="/robot/fastlio2/odom"/>
+    <param name="fastlio_topic" value="/tyi/e100/fastlio2/odom"/>
     <param name="px4_odom_topic" value="/mavros/local_position/odom"/>
     <param name="vision_topic" value="/mavros/vision_pose/pose"/>
     <param name="vision_frame_id" value="map"/> <!-- 或者 "odom" 两者选其一，保持一致 -->

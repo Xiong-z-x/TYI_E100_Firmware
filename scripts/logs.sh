@@ -2,4 +2,5 @@
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
-run_compose logs --tail=200 -f base-stack
+service="${1:-flight-core}"
+run_compose logs --tail=200 -f "${service}"

@@ -10,9 +10,23 @@ bash ./scripts/deploy.sh --build
 ```
 
 - `deploy.sh`
-  pulls the prebuilt image and starts it
+  pulls the prebuilt `flight-core` image, builds the default gateway images, and starts the stack
 - `deploy.sh --build`
   builds from the local source tree and then starts the runtime
+
+The default Nano services are:
+
+- `flight-core`
+- `control-gateway`
+- `pointcloud-gateway`
+
+Optional services are enabled through Compose profiles:
+
+```bash
+docker compose --profile media up -d media-gateway
+docker compose --profile vision up -d vision-gateway
+docker compose -f docker-compose.yml -f docker-compose.build.yml --profile planner up -d planner
+```
 
 ## Rebuild only
 
@@ -40,5 +54,5 @@ bash ./scripts/logs.sh
 bash ./scripts/enter.sh
 ```
 
-`enter.sh` opens a shell inside the `base-stack` container.
+`enter.sh` opens a shell inside the runtime container, normally for inspecting ROS state in `flight-core`.
 The runtime user inside the container is `uav`, which avoids routine root execution during operation.

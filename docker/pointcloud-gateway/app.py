@@ -1685,13 +1685,13 @@ class RosCollector(threading.Thread):
     def _required_topics(self) -> List[str]:
         source_cfg = self.store.config.get("sources", {})
         topics = [
-            source_cfg.get("keyframeTopic", "/robot/fastlio2/pointcloud/keyframe"),
-            source_cfg.get("odomTopic", "/robot/fastlio2/odom"),
+            source_cfg.get("keyframeTopic", "/tyi/e100/fastlio2/pointcloud/keyframe"),
+            source_cfg.get("odomTopic", "/tyi/e100/fastlio2/odom"),
             source_cfg.get("plannerTrajectoryTopic", "/tyi_planner/predicted_path"),
             source_cfg.get("plannerStatusTopic", "/tyi_planner/status"),
         ]
         if bool(source_cfg.get("enableLiveLayer", False)) or bool(source_cfg.get("accumulateDenseToMap", True)):
-            topics.append(source_cfg.get("liveTopic", "/robot/fastlio2/pointcloud/deskewed"))
+            topics.append(source_cfg.get("liveTopic", "/tyi/e100/fastlio2/pointcloud/deskewed"))
         return [str(topic) for topic in topics if topic]
 
     def _registered_missing_topics(self, required_topics: List[str]) -> List[str]:
@@ -1727,8 +1727,8 @@ class RosCollector(threading.Thread):
         try:
             rospy.init_node("pointcloud_gateway", anonymous=False, disable_signals=True)
             source_cfg = self.store.config.get("sources", {})
-            keyframe_topic = source_cfg.get("keyframeTopic", "/robot/fastlio2/pointcloud/keyframe")
-            odom_topic = source_cfg.get("odomTopic", "/robot/fastlio2/odom")
+            keyframe_topic = source_cfg.get("keyframeTopic", "/tyi/e100/fastlio2/pointcloud/keyframe")
+            odom_topic = source_cfg.get("odomTopic", "/tyi/e100/fastlio2/odom")
             self.subscribers = [
                 rospy.Subscriber(keyframe_topic, PointCloud2, self.store.ingest_keyframe, queue_size=1),
                 rospy.Subscriber(odom_topic, Odometry, self.store.ingest_odom, queue_size=1, tcp_nodelay=True),
@@ -1742,7 +1742,7 @@ class RosCollector(threading.Thread):
                 rospy.Subscriber(planner_status_topic, RosString, self.store.ingest_planner_status, queue_size=10, tcp_nodelay=True)
             )
             if bool(source_cfg.get("enableLiveLayer", False)) or bool(source_cfg.get("accumulateDenseToMap", True)):
-                live_topic = source_cfg.get("liveTopic", "/robot/fastlio2/pointcloud/deskewed")
+                live_topic = source_cfg.get("liveTopic", "/tyi/e100/fastlio2/pointcloud/deskewed")
                 self.subscribers.append(
                     rospy.Subscriber(live_topic, PointCloud2, self.store.ingest_live, queue_size=1)
                 )
@@ -1765,13 +1765,13 @@ class RosFreshnessWatchdog(threading.Thread):
     def _required_topics(self) -> List[str]:
         source_cfg = self.store.config.get("sources", {})
         topics = [
-            source_cfg.get("keyframeTopic", "/robot/fastlio2/pointcloud/keyframe"),
-            source_cfg.get("odomTopic", "/robot/fastlio2/odom"),
+            source_cfg.get("keyframeTopic", "/tyi/e100/fastlio2/pointcloud/keyframe"),
+            source_cfg.get("odomTopic", "/tyi/e100/fastlio2/odom"),
             source_cfg.get("plannerTrajectoryTopic", "/tyi_planner/predicted_path"),
             source_cfg.get("plannerStatusTopic", "/tyi_planner/status"),
         ]
         if bool(source_cfg.get("enableLiveLayer", False)) or bool(source_cfg.get("accumulateDenseToMap", True)):
-            topics.append(source_cfg.get("liveTopic", "/robot/fastlio2/pointcloud/deskewed"))
+            topics.append(source_cfg.get("liveTopic", "/tyi/e100/fastlio2/pointcloud/deskewed"))
         return [str(topic) for topic in topics if topic]
 
     def _missing_registered_topics(self, required_topics: List[str]) -> List[str]:

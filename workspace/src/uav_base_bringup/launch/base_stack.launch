@@ -14,8 +14,8 @@
   <arg name="respawn_mavros" default="$(optenv MAVROS_RESPAWN false)" />
   <arg name="enable_high_rate_odom_ekf" default="$(optenv ENABLE_HIGH_RATE_ODOM_EKF true)" />
   <arg name="high_rate_odom_ekf_imu_topic" default="$(optenv HIGH_RATE_ODOM_EKF_IMU_TOPIC /livox/imu)" />
-  <arg name="high_rate_odom_ekf_odom_topic" default="$(optenv HIGH_RATE_ODOM_EKF_ODOM_TOPIC /robot/fastlio2/odom)" />
-  <arg name="high_rate_odom_ekf_output_topic" default="$(optenv HIGH_RATE_ODOM_EKF_OUTPUT_TOPIC /robot/ekf_odom)" />
+  <arg name="high_rate_odom_ekf_odom_topic" default="$(optenv HIGH_RATE_ODOM_EKF_ODOM_TOPIC /tyi/e100/fastlio2/odom)" />
+  <arg name="high_rate_odom_ekf_output_topic" default="$(optenv HIGH_RATE_ODOM_EKF_OUTPUT_TOPIC /tyi/e100/ekf_odom)" />
 
   <node name="livox_lidar_publisher2"
         pkg="livox_ros_driver2"
@@ -65,6 +65,7 @@
     <param name="output_topic" type="string" value="$(arg high_rate_odom_ekf_output_topic)" />
     <param name="output_frame_id" type="string" value="robot/odom" />
     <param name="output_child_frame_id" type="string" value="base_link" />
+    <param name="max_lio_age_sec" type="double" value="3.0" />
     <param name="position_cov" type="double" value="0.02" />
     <param name="orientation_cov" type="double" value="0.02" />
     <param name="gyro_noise" type="double" value="0.05" />
@@ -74,9 +75,13 @@
     <param name="use_imu_accel_for_position" type="bool" value="false" />
     <param name="odom_velocity_gain" type="double" value="0.85" />
     <param name="velocity_random_walk" type="double" value="0.20" />
-    <param name="buffer_sec" type="double" value="1.0" />
-    <param name="max_replay_sec" type="double" value="0.75" />
-    <param name="reject_position_threshold_m" type="double" value="0.0" />
+    <param name="buffer_sec" type="double" value="5.0" />
+    <param name="max_replay_sec" type="double" value="2.5" />
+    <param name="imu_queue_size" type="int" value="40" />
+    <param name="odom_queue_size" type="int" value="5" />
+    <param name="publish_queue_size" type="int" value="100" />
+    <param name="publish_rate_hz" type="double" value="0.0" />
+    <param name="reject_position_threshold_m" type="double" value="0.5" />
   </node>
 
   <node pkg="fastlio_to_mavros"
@@ -86,6 +91,8 @@
         output="screen"
         respawn="true"
         respawn_delay="2">
+    <env name="LIO_ODOM_TOPIC" value="/tyi/e100/ekf_odom" />
+    <env name="LIO_ODOM_MIN_HZ" value="10" />
     <rosparam file="$(arg config_root)/fastlio_to_mavros/bridge.yaml" command="load" />
   </node>
 

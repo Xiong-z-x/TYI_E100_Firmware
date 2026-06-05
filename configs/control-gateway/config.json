@@ -42,7 +42,7 @@
     },
     "lidarPixelProjection": {
       "enabled": false,
-      "pointTopic": "/robot/fastlio2/pointcloud/deskewed",
+      "pointTopic": "/tyi/e100/fastlio2/pointcloud/deskewed",
       "maxSamplePoints": 16000,
       "maxPointAgeSec": 30.0,
       "pixelSearchRadiusPx": 28,
@@ -168,5 +168,16 @@
     "maxYaw": 0.6,
     "holdOnArmedLeaseTimeout": true,
     "failsafeMode": "AUTO.LOITER"
+  },
+  "features": {
+    "mediaGateway": {
+      "enabled": false,
+      "profile": "media"
+    },
+    "visionGateway": {
+      "enabled": false,
+      "profile": "vision",
+      "baseUrl": "http://127.0.0.1:8765"
+    }
   }
 }

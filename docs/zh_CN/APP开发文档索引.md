@@ -7,7 +7,7 @@
 1. `docs/zh_CN/系统架构与数据链路.md`
 2. `docs/zh_CN/APP接入协议.md`
 3. `docs/app/control_gateway_openapi.yaml`
-4. `docs/zh_CN/TYI_VLN_语言导航与测距链路说明.md`
+4. `docs/zh_CN/TYI_VLN_语言导航与测距链路说明.md`，仅在启用视觉/VLM 扩展时必读
 5. `docs/app/mobile_app_reference.md`
 
 ## 每份文档的用途
@@ -19,7 +19,7 @@
 - 容器与进程级模块划分
 - 飞行定位、视频、点云、语言/点选导航、APP 接入数据流
 - 配置项来源、重复配置、硬编码默认值和需要确认的链路点
-- 当前 `TYI_VLN` / RealSense / planner overlay 与默认 compose 的关系
+- 当前默认 compose 与 media / vision / planner 可选 profile 的关系
 
 APP 开发前必须先看这份文档，避免把 APP 设计成直接访问 ROS 或直接控制媒体容器。涉及跨模块联调、链路排查、配置改动和新成员接手项目时，也应先阅读这份文档。
 

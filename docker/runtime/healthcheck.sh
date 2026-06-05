@@ -35,7 +35,7 @@ fi
 required_topics=(
   "/livox/lidar"
   "/livox/imu"
-  "/robot/fastlio2/odom"
+  "/tyi/e100/fastlio2/odom"
   "/mavros/vision_pose/pose"
   "/mavros/state"
 )
