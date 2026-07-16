@@ -1,0 +1,41 @@
+rate_hz: 20.0
+prestream_sec: 3.0
+wait_ready_timeout_sec: 12.0
+setpoint_queue_size: 50
+subscriber_queue_size: 20
+odom_max_abs_position_m: 20.0
+odom_max_abs_speed_mps: 4.0
+
+setpoint_topic: /mavros/setpoint_raw/local
+state_topic: /mavros/state
+extended_state_topic: /mavros/extended_state
+odom_topic: /mavros/local_position/odom
+set_mode_service: /mavros/set_mode
+arming_service: /mavros/cmd/arming
+command_service: /mavros/cmd/command
+
+takeoff:
+  climb_rate_mps: 0.40
+  xy_tolerance_m: 0.20
+  z_tolerance_m: 0.12
+  speed_tolerance_mps: 0.25
+  stable_sec: 1.2
+  timeout_sec: 12.0
+
+landing:
+  descent_rate_mps: 0.40
+  floor_height_m: 0.00
+  z_tolerance_m: 0.06
+  vertical_speed_tolerance_mps: 0.10
+  stable_sec: 1.0
+  timeout_sec: 10.0
+  disarm_timeout_sec: 12.0
+  force_disarm_delay_sec: 1.5
+
+test_flight:
+  takeoff_height_m: 1.2
+  takeoff_duration_sec: 3.0
+  move_distance_m: 1.0
+  move_duration_sec: 3.0
+  hover_sec: 3.0
+  land_duration_sec: 3.0

@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="mission_control" type="mission_control_node" name="mission_control" output="screen">
+    <rosparam command="load" file="$(find mission_control)/config/mission_control.yaml" />
+  </node>
+</launch>
