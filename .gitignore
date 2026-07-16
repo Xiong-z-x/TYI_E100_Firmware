@@ -15,3 +15,4 @@ workspace/install/
 third_party/Livox-SDK2/build/
 **/__pycache__/
 **/*.pyc
+.worktrees/
