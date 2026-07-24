@@ -22,6 +22,7 @@ include_directories(
 )
 
 add_library(mission_control_core
+  src/safety_gate.cpp
   src/flight_interface.cpp
   src/trajectory_generator.cpp
   src/mission_context.cpp
