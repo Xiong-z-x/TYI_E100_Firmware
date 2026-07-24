@@ -2,6 +2,7 @@ rate_hz: 20.0
 prestream_sec: 3.0
 wait_ready_timeout_sec: 12.0
 data_freshness_sec: 0.5
+status_freshness_sec: 1.5
 battery_freshness_sec: 3.0
 rate_window_sec: 4.0
 odom_stability_window_sec: 3.0

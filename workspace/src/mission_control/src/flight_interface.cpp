@@ -41,6 +41,8 @@ FlightInterface::FlightInterface(ros::NodeHandle& nh) : nh_(nh) {
   nh_.param("wait_ready_timeout_sec", wait_ready_timeout_sec_,
             wait_ready_timeout_sec_);
   nh_.param("data_freshness_sec", data_freshness_sec_, data_freshness_sec_);
+  nh_.param("status_freshness_sec", status_freshness_sec_,
+            status_freshness_sec_);
   nh_.param("battery_freshness_sec", battery_freshness_sec_,
             battery_freshness_sec_);
   nh_.param("rate_window_sec", rate_window_sec_, rate_window_sec_);
@@ -185,22 +187,44 @@ SafetySnapshot FlightInterface::safetySnapshot(const SafetyConfig& config) {
   SafetySnapshot snapshot;
   readVehicleInfo(&snapshot);
   snapshot.px4_params = readPx4Params(config);
-  // Service calls above can take longer than the freshness threshold.
-  // Process all queued sensor/state messages immediately before evaluating
-  // their receive times.
-  ros::spinOnce();
+  // Synchronous service calls above can delay subscriber processing. Wait for
+  // one bounded, rate-aware refresh before evaluating the dynamic state.
+  const ros::WallTime refresh_deadline =
+      ros::WallTime::now() + ros::WallDuration(3.0);
+  ros::WallRate refresh_rate(100.0);
+  while (ros::ok() && ros::WallTime::now() < refresh_deadline) {
+    ros::spinOnce();
+    const bool refreshed =
+        has_state_ &&
+        dataFresh(state_received_, status_freshness_sec_) &&
+        has_extended_state_ &&
+        dataFresh(extended_state_received_, status_freshness_sec_) &&
+        has_estimator_ &&
+        dataFresh(estimator_received_, status_freshness_sec_) &&
+        has_rc_ && dataFresh(rc_received_, data_freshness_sec_) &&
+        has_battery_ &&
+        dataFresh(battery_received_, battery_freshness_sec_) &&
+        has_odom_ && dataFresh(odom_received_, data_freshness_sec_) &&
+        has_clock_ && dataFresh(clock_received_, data_freshness_sec_);
+    if (refreshed) {
+      break;
+    }
+    refresh_rate.sleep();
+  }
 
   snapshot.connected =
-      has_state_ && dataFresh(state_received_, data_freshness_sec_) &&
+      has_state_ &&
+      dataFresh(state_received_, status_freshness_sec_) &&
       state_.connected;
   snapshot.armed = has_state_ && state_.armed;
   snapshot.manual_input =
-      has_state_ && dataFresh(state_received_, data_freshness_sec_) &&
+      has_state_ &&
+      dataFresh(state_received_, status_freshness_sec_) &&
       state_.manual_input;
   snapshot.mode = has_state_ ? state_.mode : "";
   snapshot.on_ground =
       has_extended_state_ &&
-      dataFresh(extended_state_received_, data_freshness_sec_) &&
+      dataFresh(extended_state_received_, status_freshness_sec_) &&
       extended_state_.landed_state ==
           mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND;
 
@@ -217,7 +241,8 @@ SafetySnapshot FlightInterface::safetySnapshot(const SafetyConfig& config) {
       has_battery_ ? static_cast<double>(battery_.percentage) : -1.0;
 
   snapshot.estimator_fresh =
-      has_estimator_ && dataFresh(estimator_received_, data_freshness_sec_);
+      has_estimator_ &&
+      dataFresh(estimator_received_, status_freshness_sec_);
   if (has_estimator_) {
     snapshot.attitude_valid = estimator_.attitude_status_flag;
     snapshot.velocity_horiz_valid = estimator_.velocity_horiz_status_flag;
@@ -541,7 +566,7 @@ bool FlightInterface::ready() const {
 
 bool FlightInterface::connected() const {
   return has_state_ && state_.connected &&
-         dataFresh(state_received_, data_freshness_sec_);
+         dataFresh(state_received_, status_freshness_sec_);
 }
 
 bool FlightInterface::armed() const {
@@ -576,7 +601,7 @@ bool FlightInterface::armSwitchEngaged() const {
 
 bool FlightInterface::controlReliable() const {
   return connected() && has_estimator_ &&
-         dataFresh(estimator_received_, data_freshness_sec_) &&
+         dataFresh(estimator_received_, status_freshness_sec_) &&
          estimator_.attitude_status_flag &&
          estimator_.velocity_horiz_status_flag &&
          estimator_.velocity_vert_status_flag &&

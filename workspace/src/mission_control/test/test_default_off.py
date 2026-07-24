@@ -47,6 +47,23 @@ class DefaultOffTest(unittest.TestCase):
             interface,
         )
 
+    def test_status_freshness_matches_one_hertz_mavros_topics(self) -> None:
+        config = (PACKAGE_ROOT / "config" / "mission_control.yaml").read_text(
+            encoding="utf-8"
+        )
+        interface = (
+            PACKAGE_ROOT / "src" / "flight_interface.cpp"
+        ).read_text(encoding="utf-8")
+        self.assertIn("status_freshness_sec: 1.5", config)
+        self.assertIn(
+            "dataFresh(state_received_, status_freshness_sec_)",
+            interface,
+        )
+        self.assertIn(
+            "dataFresh(estimator_received_, status_freshness_sec_)",
+            interface,
+        )
+
     def test_legacy_boot_service_and_force_disarm_are_absent(self) -> None:
         source_text = "\n".join(
             path.read_text(encoding="utf-8")
