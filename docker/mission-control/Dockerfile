@@ -6,7 +6,9 @@ USER root
 COPY workspace/src/mission_control \
      /opt/uav/mission_control_ws/src/mission_control
 
-RUN bash -lc 'set -euo pipefail; \
+RUN bash -lc 'set -eo pipefail; \
+  export ROS_MASTER_URI=http://127.0.0.1:11311; \
+  export ROS_HOSTNAME=127.0.0.1; \
   source /opt/ros/noetic/setup.bash; \
   source /opt/uav/base_stack/workspace/install_isolated/setup.bash; \
   ln -s /opt/ros/noetic/share/catkin/cmake/toplevel.cmake \
