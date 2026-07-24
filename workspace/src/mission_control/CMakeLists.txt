@@ -22,6 +22,7 @@ include_directories(
 )
 
 add_library(mission_control_core
+  src/mission_policy.cpp
   src/safety_gate.cpp
   src/flight_interface.cpp
   src/trajectory_generator.cpp
@@ -60,5 +61,13 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_safety_gate)
     target_link_libraries(test_safety_gate ${catkin_LIBRARIES})
+  endif()
+
+  catkin_add_gtest(test_mission_policy
+    test/test_mission_policy.cpp
+    src/mission_policy.cpp
+  )
+  if(TARGET test_mission_policy)
+    target_link_libraries(test_mission_policy ${catkin_LIBRARIES})
   endif()
 endif()
