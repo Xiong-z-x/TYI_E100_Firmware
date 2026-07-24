@@ -51,3 +51,13 @@ install(DIRECTORY include/${PROJECT_NAME}/
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_safety_gate
+    test/test_safety_gate.cpp
+    src/safety_gate.cpp
+  )
+  if(TARGET test_safety_gate)
+    target_link_libraries(test_safety_gate ${catkin_LIBRARIES})
+  endif()
+endif()
