@@ -304,10 +304,12 @@ def main() -> None:
     signal.signal(signal.SIGTERM, stop)
 
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_started = False
     terminal_error: Optional[str] = None
     try:
         camera.start()
         server_thread.start()
+        server_started = True
         logging.info(
             "camera stream available at http://%s:%d/stream.mjpg",
             args.host,
@@ -319,9 +321,10 @@ def main() -> None:
                 break
     finally:
         stop_event.set()
-        server.shutdown()
+        if server_started:
+            server.shutdown()
+            server_thread.join(timeout=3)
         server.server_close()
-        server_thread.join(timeout=3)
         camera.stop()
     if terminal_error:
         raise RuntimeError(terminal_error)
