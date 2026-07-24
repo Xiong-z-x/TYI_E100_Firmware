@@ -144,3 +144,54 @@ consistency. It does not by itself authorize takeoff. Before fitting propellers
 or attempting flight, separately verify motor order/direction, RC/failsafe,
 battery behavior, arming checks with Kill deliberately released in a safe
 propeller-off state, and position stability under actual motor vibration.
+
+## Guarded mission module deployed on 2026-07-24
+
+- Source/deployment commit: `ccae8eab813f13055ff53f6301e5ca7884a74e66`
+- Manual-flight rollback baseline:
+  `53de4c7a4d13ca66af4e6560be57fdff1359a8f7`
+- Runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r2`
+- Base image preserved:
+  `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`
+- Runtime environment backup:
+  `backups/mission-control-20260724/env.before-mission-safe`
+
+The module is default-off. Container startup creates no mission node and no
+setpoint publisher. The only host entry point is:
+
+```bash
+./scripts/mission check
+./scripts/mission test_flight --confirm-uav-051
+```
+
+The first command requires Kill engaged and Arm low. It checks the exact FCU
+UID/SYSID/COMPID, POSCTL/disarmed/landed state, RC and battery, estimator
+flags, PX4 failsafe parameters, LiDAR/IMU/FAST-LIO/vision/local-odom rates,
+stationary odometry, monotonic clock, and competing setpoint publishers.
+
+The deployed Kill-stage check returned:
+
+```text
+PRECHECK PASS - SAFE TO RELEASE KILL
+```
+
+Its mode-0600 one-use receipt was removed after deployment validation, so a
+new check is mandatory immediately before any real test flight.
+
+The real mission has not been executed. It is fixed to a 1.2 m relative
+takeoff, 3 s hover, 1 m closed square referenced to the takeoff origin, another
+3 s hover, controlled descent, landed confirmation, and normal disarm.
+
+Kill or any manual exit from OFFBOARD stops the mission and setpoint stream.
+FCU/MAVROS/position loss stops setpoints and yields to PX4 failsafe. Only an
+ordinary task failure with reliable control initiates controlled landing, with
+PX4 `AUTO.LAND` as fallback. There is no forced-disarm command.
+
+Post-deploy evidence:
+
+- all three containers healthy;
+- LiDAR about 20.2 Hz, Livox IMU about 202 Hz, FAST-LIO about 20.2 Hz;
+- vision pose about 200 Hz and PX4 local odometry about 20.2 Hz;
+- no mission node and no publisher on `/mavros/setpoint_raw/local`;
+- MAVROS connected, vehicle disarmed, manual input present, mode `POSCTL`;
+- 26 ARM64 policy tests and 3 default-off static tests passed.
