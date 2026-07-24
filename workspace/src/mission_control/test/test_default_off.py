@@ -102,6 +102,16 @@ class DefaultOffTest(unittest.TestCase):
         self.assertIn("waitUntilNear(", move_body)
         self.assertIn("waypoint target tolerance timed out", move_body)
 
+    def test_auto_disarm_timeout_is_read_as_a_real_px4_parameter(self) -> None:
+        source = (
+            PACKAGE_ROOT / "src" / "flight_interface.cpp"
+        ).read_text(encoding="utf-8")
+        start = source.index("bool isRealParameter")
+        end = source.index("}  // namespace", start)
+        real_parameter_policy = source[start:end]
+
+        self.assertIn('"COM_DISARM_LAND"', real_parameter_policy)
+
 
 if __name__ == "__main__":
     unittest.main()

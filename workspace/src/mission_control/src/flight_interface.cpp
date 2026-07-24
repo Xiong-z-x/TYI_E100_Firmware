@@ -26,6 +26,7 @@ double wrappedAngleDistance(double a, double b) {
 
 bool isRealParameter(const std::string& name) {
   static const std::set<std::string> real_parameters{
+      "COM_DISARM_LAND",
       "COM_OF_LOSS_T",
       "COM_RC_LOSS_T",
       "COM_RC_STICK_OV",
