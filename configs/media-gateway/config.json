@@ -2,8 +2,8 @@
   "httpPort": 8555,
   "camera": {
     "sourceMode": "mjpeg",
-    "sourceUrl": "http://127.0.0.1:8765/v1/mjpeg",
-    "preferredDevice": "/dev/v4l/by-path/platform-3610000.xhci-usb-0:1:1.3-video-index0",
+    "sourceUrl": "http://127.0.0.1:8090/stream.mjpg",
+    "preferredDevice": "/dev/v4l/by-id/usb-HD_Camera_Manufacturer_USB_2.0_Camera-video-index0",
     "fallbackDevices": [
       "/dev/video4"
     ],
