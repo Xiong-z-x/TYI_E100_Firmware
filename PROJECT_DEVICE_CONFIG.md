@@ -147,10 +147,14 @@ propeller-off state, and position stability under actual motor vibration.
 
 ## Guarded mission module deployed on 2026-07-24
 
-- Source/deployment commit: `ccae8eab813f13055ff53f6301e5ca7884a74e66`
+- Mission source fix: `ccae8eab813f13055ff53f6301e5ca7884a74e66`
+- Device deployment commit: `1063547d68e4c97a8e41dd4c75d92b37fde677a3`
+- Git branch/tag: `feature/mission-control-safe` /
+  `mission-safe-uav051-20260724`
 - Manual-flight rollback baseline:
   `53de4c7a4d13ca66af4e6560be57fdff1359a8f7`
 - Runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r2`
+- Runtime image ID: `sha256:3f10521503c5...`
 - Base image preserved:
   `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`
 - Runtime environment backup:
