@@ -8,12 +8,15 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   nav_msgs
   roscpp
+  rosgraph_msgs
+  sensor_msgs
   std_srvs
+  topic_tools
 )
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS geometry_msgs mavros_msgs nav_msgs roscpp std_srvs
+  CATKIN_DEPENDS geometry_msgs mavros_msgs nav_msgs roscpp rosgraph_msgs sensor_msgs std_srvs topic_tools
 )
 
 include_directories(
@@ -23,6 +26,7 @@ include_directories(
 
 add_library(mission_control_core
   src/mission_policy.cpp
+  src/preflight.cpp
   src/preflight_receipt.cpp
   src/safety_gate.cpp
   src/flight_interface.cpp
@@ -33,15 +37,11 @@ add_library(mission_control_core
 target_link_libraries(mission_control_core ${catkin_LIBRARIES})
 add_dependencies(mission_control_core ${catkin_EXPORTED_TARGETS})
 
-add_executable(mission_control_node src/control_node.cpp)
-target_link_libraries(mission_control_node mission_control_core ${catkin_LIBRARIES})
-add_dependencies(mission_control_node ${catkin_EXPORTED_TARGETS})
-
 add_executable(mission_main src/main_mission_node.cpp)
 target_link_libraries(mission_main mission_control_core ${catkin_LIBRARIES})
 add_dependencies(mission_main ${catkin_EXPORTED_TARGETS})
 
-install(TARGETS mission_control_core mission_control_node mission_main
+install(TARGETS mission_control_core mission_main
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -56,6 +56,8 @@ install(DIRECTORY launch config
 )
 
 if(CATKIN_ENABLE_TESTING)
+  find_package(PythonInterp REQUIRED)
+
   catkin_add_gtest(test_safety_gate
     test/test_safety_gate.cpp
     src/safety_gate.cpp
@@ -79,4 +81,10 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET test_preflight_receipt)
     target_link_libraries(test_preflight_receipt ${catkin_LIBRARIES})
   endif()
+
+  add_test(
+    NAME test_mission_control_default_off
+    COMMAND ${PYTHON_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/test_default_off.py
+  )
 endif()

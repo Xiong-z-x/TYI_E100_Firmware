@@ -1,9 +1,11 @@
 <launch>
   <arg name="mission" default="status" />
   <arg name="auto_start" default="false" />
+  <arg name="confirm_uav_051" default="false" />
 
   <node pkg="mission_control" type="mission_main" name="mission_main" output="screen"
-        args="_mission:=$(arg mission) _auto_start:=$(arg auto_start)">
+        required="true"
+        args="_mission:=$(arg mission) _auto_start:=$(arg auto_start) _confirm_uav_051:=$(arg confirm_uav_051)">
     <rosparam command="load" file="$(find mission_control)/config/mission_control.yaml" />
   </node>
 </launch>

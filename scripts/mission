@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONTAINER_NAME="${FLIGHT_CORE_CONTAINER_NAME:-flight-core}"
+LOCK_FILE="/tmp/tyi-e100-mission-control.lock"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./scripts/mission check
+  ./scripts/mission test_flight --confirm-uav-051
+
+Sequence:
+  1. Keep RC Kill engaged and arm switch low; run "check".
+  2. Only after PRECHECK PASS, release Kill.
+  3. Run "test_flight --confirm-uav-051" within 120 seconds.
+EOF
+}
+
+if [[ "$#" -eq 0 ]]; then
+  usage
+  exit 2
+fi
+
+exec 9>"${LOCK_FILE}"
+if ! flock -n 9; then
+  echo "A mission-control command is already running." >&2
+  exit 1
+fi
+
+if [[ "$(docker inspect -f '{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null || true)" != "true" ]]; then
+  echo "Container '${CONTAINER_NAME}' is not running." >&2
+  exit 1
+fi
+
+mkdir -p "${REPO_ROOT}/logs/mission-control"
+
+run_mission() {
+  local mission="$1"
+  local auto_start="$2"
+  local confirm="$3"
+  docker exec \
+    -e ROS_MASTER_URI="http://127.0.0.1:${ROS_MASTER_PORT:-11311}" \
+    -e ROS_HOSTNAME=127.0.0.1 \
+    "${CONTAINER_NAME}" \
+    bash -lc "
+      set -euo pipefail
+      source /opt/ros/noetic/setup.bash
+      source /opt/uav/base_stack/workspace/install_isolated/setup.bash
+      source /opt/uav/mission_control_ws/devel/setup.bash
+      exec roslaunch mission_control main_mission.launch \
+        mission:=${mission} \
+        auto_start:=${auto_start} \
+        confirm_uav_051:=${confirm}
+    "
+}
+
+case "$1" in
+  check)
+    if [[ "$#" -ne 1 ]]; then
+      usage
+      exit 2
+    fi
+    run_mission check false false
+    ;;
+  test_flight)
+    if [[ "$#" -ne 2 || "$2" != "--confirm-uav-051" ]]; then
+      usage
+      exit 2
+    fi
+    run_mission test_flight true true
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
