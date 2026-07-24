@@ -76,5 +76,5 @@ return !disarm ||
   otherwise leave no receipt and report that runtime precheck is pending.
 - [x] Verify no mission node and no publisher on
   `/mavros/setpoint_raw/local`.
-- [ ] Record ULog ID 8 evidence, commits, image ID, rollback tag, and the
+- [x] Record ULog ID 8 evidence, commits, image ID, rollback tag, and the
   ground-verification boundary; push the feature branch and r6 tag.
