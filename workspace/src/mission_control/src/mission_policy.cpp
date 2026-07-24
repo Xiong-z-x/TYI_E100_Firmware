@@ -23,6 +23,14 @@ bool MissionPolicy::forceDisarmAllowed() const {
   return false;
 }
 
+double MissionPolicy::nearestCardinalYaw(double yaw) {
+  if (!std::isfinite(yaw)) {
+    throw std::invalid_argument("yaw must be finite");
+  }
+  const double half_pi = std::acos(-1.0) / 2.0;
+  return std::round(yaw / half_pi) * half_pi;
+}
+
 std::vector<LocalPoint> MissionPolicy::squareWaypoints(
     const LocalPoint& origin, double height, double side_length, double yaw) {
   if (!std::isfinite(height) || height <= 0.0 ||

@@ -76,6 +76,32 @@ class DefaultOffTest(unittest.TestCase):
         self.assertNotIn("mission_control_node", source_text)
         self.assertFalse((PACKAGE_ROOT / "launch" / "control.launch").exists())
 
+    def test_normal_landing_hands_control_to_px4_land_mode(self) -> None:
+        source = (
+            PACKAGE_ROOT / "src" / "mission_context.cpp"
+        ).read_text(encoding="utf-8")
+        start = source.index("bool MissionContext::land")
+        end = source.index("bool MissionContext::recoverFromFailure")
+        land_body = source[start:end]
+
+        self.assertIn('requestMode("AUTO.LAND")', land_body)
+        self.assertIn("disableSetpointPublisher()", land_body)
+        self.assertIn("waitLanded(", land_body)
+        self.assertIn("waitDisarmed(", land_body)
+        self.assertNotIn("waitGroundContactWhileHolding", land_body)
+        self.assertNotIn("disarmWhileHolding", land_body)
+
+    def test_coordinate_move_waits_for_waypoint_arrival(self) -> None:
+        source = (
+            PACKAGE_ROOT / "src" / "mission_context.cpp"
+        ).read_text(encoding="utf-8")
+        start = source.index("bool MissionContext::moveToPoint")
+        end = source.index("bool MissionContext::hover")
+        move_body = source[start:end]
+
+        self.assertIn("waitUntilNear(", move_body)
+        self.assertIn("waypoint target tolerance timed out", move_body)
+
 
 if __name__ == "__main__":
     unittest.main()

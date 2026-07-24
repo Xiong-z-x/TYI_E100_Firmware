@@ -6,6 +6,7 @@
 #include <ctime>
 #include <dirent.h>
 #include <iomanip>
+#include <stdexcept>
 #include <sys/stat.h>
 #include <vector>
 
@@ -34,19 +35,19 @@ void MissionContext::loadParameters() {
            takeoff_stable_sec_);
   nh.param("takeoff/timeout_sec", takeoff_timeout_sec_,
            takeoff_timeout_sec_);
-  nh.param("landing/descent_rate_mps", landing_descent_rate_mps_,
-           landing_descent_rate_mps_);
-  nh.param("landing/floor_height_m", landing_floor_height_m_,
-           landing_floor_height_m_);
-  nh.param("landing/z_tolerance_m", landing_z_tolerance_m_,
-           landing_z_tolerance_m_);
-  nh.param("landing/vertical_speed_tolerance_mps",
-           landing_vertical_speed_tolerance_mps_,
-           landing_vertical_speed_tolerance_mps_);
+  nh.param("navigation/xy_tolerance_m", navigation_xy_tolerance_m_,
+           navigation_xy_tolerance_m_);
+  nh.param("navigation/z_tolerance_m", navigation_z_tolerance_m_,
+           navigation_z_tolerance_m_);
+  nh.param("navigation/speed_tolerance_mps",
+           navigation_speed_tolerance_mps_,
+           navigation_speed_tolerance_mps_);
+  nh.param("navigation/stable_sec", navigation_stable_sec_,
+           navigation_stable_sec_);
+  nh.param("navigation/timeout_sec", navigation_timeout_sec_,
+           navigation_timeout_sec_);
   nh.param("landing/stable_sec", landing_stable_sec_,
            landing_stable_sec_);
-  nh.param("landing/timeout_sec", landing_timeout_sec_,
-           landing_timeout_sec_);
   nh.param("landing/disarm_timeout_sec", disarm_timeout_sec_,
            disarm_timeout_sec_);
   nh.param("landing/auto_land_wait_sec", auto_land_wait_sec_,
@@ -66,6 +67,7 @@ bool MissionContext::boot() {
   takeoff_origin_ = flight_.currentPosition();
   last_target_ = takeoff_origin_;
   initial_yaw_ = flight_.currentYaw();
+  commanded_yaw_ = initial_yaw_;
   has_takeoff_origin_ = true;
   has_last_target_ = true;
   mission_active_ = true;
@@ -127,6 +129,15 @@ bool MissionContext::moveToPoint(const geometry_msgs::Point& target,
   }
   last_target_ = target;
   has_last_target_ = true;
+  if (!waitUntilNear(target, navigation_xy_tolerance_m_,
+                     navigation_z_tolerance_m_,
+                     navigation_speed_tolerance_mps_,
+                     navigation_stable_sec_, navigation_timeout_sec_)) {
+    if (failure_action_ != FailureAction::Continue) {
+      return false;
+    }
+    return failTask("waypoint target tolerance timed out");
+  }
   return true;
 }
 
@@ -140,50 +151,33 @@ bool MissionContext::hover(double duration_sec) {
     if (!checkContinuation("hover")) {
       return false;
     }
-    flight_.publishPositionTarget(target, initial_yaw_, true);
+    flight_.publishPositionTarget(target, commanded_yaw_, true);
     logSample("hover", target);
     rate.sleep();
   }
   return ros::ok();
 }
 
-bool MissionContext::land(double duration_sec, double floor_height,
-                          bool disarm) {
-  geometry_msgs::Point target =
-      has_takeoff_origin_ ? takeoff_origin_ : flight_.currentPosition();
-  const double ground_z =
-      has_takeoff_origin_ ? takeoff_origin_.z : target.z;
-  const double floor_offset =
-      std::isfinite(floor_height) ? floor_height : landing_floor_height_m_;
-  target.z = ground_z + floor_offset;
-
-  ROS_INFO("mission controlled landing target=(%.2f, %.2f, %.2f)",
-           target.x, target.y, target.z);
-  const double descent =
-      std::max(0.0, flight_.currentPosition().z - target.z);
-  if (!rampTo(target,
-              std::max(duration_sec,
-                       descent / landing_descent_rate_mps_))) {
-    return false;
-  }
-  last_target_ = target;
-  has_last_target_ = true;
-  if (!waitGroundContactWhileHolding(
-          target, ground_z, landing_z_tolerance_m_,
-          landing_vertical_speed_tolerance_mps_, landing_stable_sec_,
-          landing_timeout_sec_)) {
-    if (failure_action_ == FailureAction::Continue) {
-      return failTask("ground-contact criteria timed out");
-    }
-    return false;
-  }
-  if (disarm && !disarmWhileHolding(target, disarm_timeout_sec_)) {
-    if (failure_action_ == FailureAction::Continue) {
-      return failTask("normal disarm timed out");
-    }
-    return false;
+bool MissionContext::land(bool disarm) {
+  ROS_INFO("mission handing landing control to PX4 AUTO.LAND");
+  if (!flight_.requestMode("AUTO.LAND")) {
+    return failTask("PX4 rejected AUTO.LAND request");
   }
   mission_active_ = false;
+  flight_.disableSetpointPublisher();
+  if (!flight_.waitLanded(ros::Duration(auto_land_wait_sec_),
+                          ros::Duration(landing_stable_sec_))) {
+    failure_action_ = FailureAction::StopSetpoints;
+    ROS_ERROR("PX4 AUTO.LAND did not confirm landed state");
+    return false;
+  }
+  if (disarm &&
+      !flight_.waitDisarmed(ros::Duration(disarm_timeout_sec_))) {
+    failure_action_ = FailureAction::StopSetpoints;
+    ROS_ERROR("PX4 did not auto-disarm after landing");
+    return false;
+  }
+  ROS_INFO("PX4 landing and auto-disarm confirmed");
   return true;
 }
 
@@ -208,7 +202,7 @@ bool MissionContext::recoverFromFailure() {
   recovering_ = true;
   failure_action_ = FailureAction::ControlledLand;
   ROS_WARN("ordinary mission failure: attempting controlled landing");
-  if (land(3.0, landing_floor_height_m_, true)) {
+  if (land(true)) {
     flight_.disableSetpointPublisher();
     recovering_ = false;
     return true;
@@ -222,18 +216,7 @@ bool MissionContext::recoverFromFailure() {
     return false;
   }
 
-  ROS_WARN("controlled landing incomplete; requesting PX4 AUTO.LAND");
-  if (!flight_.requestMode("AUTO.LAND")) {
-    flight_.disableSetpointPublisher();
-    return false;
-  }
-  flight_.disableSetpointPublisher();
-  if (!flight_.waitLanded(ros::Duration(auto_land_wait_sec_),
-                          ros::Duration(landing_stable_sec_))) {
-    ROS_ERROR("PX4 AUTO.LAND did not confirm landed state");
-    return false;
-  }
-  return flight_.disarmUntilLocked(ros::Duration(disarm_timeout_sec_));
+  return false;
 }
 
 void MissionContext::openMissionLog() {
@@ -359,7 +342,7 @@ bool MissionContext::waitUntilNear(
     const bool near = std::hypot(dx, dy) <= xy_tolerance &&
                       std::abs(dz) <= z_tolerance &&
                       speed <= speed_tolerance;
-    flight_.publishPositionTarget(target, initial_yaw_, true);
+    flight_.publishPositionTarget(target, commanded_yaw_, true);
     logSample("wait_target", target);
 
     if (near) {
@@ -378,74 +361,15 @@ bool MissionContext::waitUntilNear(
   return false;
 }
 
-bool MissionContext::waitGroundContactWhileHolding(
-    const geometry_msgs::Point& target, double ground_z,
-    double z_tolerance, double vertical_speed_tolerance,
-    double stable_sec, double timeout_sec) {
-  const ros::WallTime deadline =
-      ros::WallTime::now() + ros::WallDuration(timeout_sec);
-  ros::WallTime stable_since;
-  bool stable_started = false;
-  ros::WallRate rate(flight_.rateHz());
-
-  while (ros::ok() && ros::WallTime::now() < deadline) {
-    if (!checkContinuation("landing")) {
-      return false;
-    }
-    const geometry_msgs::Point current = flight_.currentPosition();
-    const geometry_msgs::Vector3 velocity = flight_.currentVelocity();
-    const bool near_ground =
-        current.z <= ground_z + z_tolerance &&
-        std::abs(velocity.z) <= vertical_speed_tolerance;
-    flight_.publishPositionTarget(target, initial_yaw_, true);
-    logSample("ground_contact", target);
-
-    if (near_ground || flight_.landed()) {
-      if (!stable_started) {
-        stable_started = true;
-        stable_since = ros::WallTime::now();
-      }
-      if ((ros::WallTime::now() - stable_since).toSec() >= stable_sec) {
-        return true;
-      }
-    } else {
-      stable_started = false;
-    }
-    rate.sleep();
-  }
-  return false;
-}
-
-bool MissionContext::disarmWhileHolding(
-    const geometry_msgs::Point& target, double timeout_sec) {
-  const ros::WallTime deadline =
-      ros::WallTime::now() + ros::WallDuration(timeout_sec);
-  ros::WallTime last_disarm_request;
-  ros::WallRate rate(flight_.rateHz());
-
-  while (ros::ok() && ros::WallTime::now() < deadline) {
-    ros::spinOnce();
-    if (!flight_.armed()) {
-      ROS_INFO("vehicle confirmed disarmed");
-      return true;
-    }
-    if (!checkContinuation("normal disarm")) {
-      return false;
-    }
-    flight_.publishPositionTarget(target, initial_yaw_, true);
-    logSample("disarm", target);
-    if (last_disarm_request.isZero() ||
-        (ros::WallTime::now() - last_disarm_request).toSec() >= 0.5) {
-      flight_.arm(false);
-      last_disarm_request = ros::WallTime::now();
-    }
-    rate.sleep();
-  }
-  return false;
-}
-
 void MissionContext::lock() {
   flight_.lock();
+}
+
+void MissionContext::setMissionYaw(double yaw) {
+  if (!std::isfinite(yaw)) {
+    throw std::invalid_argument("mission yaw must be finite");
+  }
+  commanded_yaw_ = yaw;
 }
 
 std::string MissionContext::statusText() const {
@@ -467,7 +391,7 @@ bool MissionContext::rampTo(const geometry_msgs::Point& target,
     const double ratio = std::min(1.0, elapsed / duration);
     const geometry_msgs::Point point =
         TrajectoryGenerator::interpolate(start, target, ratio);
-    flight_.publishPositionTarget(point, initial_yaw_, true);
+    flight_.publishPositionTarget(point, commanded_yaw_, true);
     logSample("ramp", point);
     if (ratio >= 1.0) {
       return true;

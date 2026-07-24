@@ -22,9 +22,10 @@ public:
               bool relative = false);
   bool moveToPoint(const geometry_msgs::Point& target, double duration_sec);
   bool hover(double duration_sec);
-  bool land(double duration_sec, double floor_height, bool disarm = true);
+  bool land(bool disarm = true);
   bool recoverFromFailure();
   void lock();
+  void setMissionYaw(double yaw);
 
   geometry_msgs::Point takeoffOrigin() const { return takeoff_origin_; }
   double initialYaw() const { return initial_yaw_; }
@@ -43,12 +44,6 @@ private:
                      double xy_tolerance, double z_tolerance,
                      double speed_tolerance, double stable_sec,
                      double timeout_sec);
-  bool waitGroundContactWhileHolding(
-      const geometry_msgs::Point& target, double ground_z,
-      double z_tolerance, double vertical_speed_tolerance,
-      double stable_sec, double timeout_sec);
-  bool disarmWhileHolding(const geometry_msgs::Point& target,
-                          double timeout_sec);
   bool rampTo(const geometry_msgs::Point& target, double duration_sec);
 
   FlightInterface& flight_;
@@ -60,6 +55,7 @@ private:
   bool mission_active_{false};
   bool recovering_{false};
   double initial_yaw_{0.0};
+  double commanded_yaw_{0.0};
   FailureAction failure_action_{FailureAction::Continue};
   std::ofstream mission_log_;
   std::string mission_log_dir_{"/opt/uav/logs/mission-control"};
@@ -71,12 +67,12 @@ private:
   double takeoff_speed_tolerance_mps_{0.25};
   double takeoff_stable_sec_{1.2};
   double takeoff_timeout_sec_{12.0};
-  double landing_descent_rate_mps_{0.25};
-  double landing_floor_height_m_{-0.03};
-  double landing_z_tolerance_m_{0.06};
-  double landing_vertical_speed_tolerance_mps_{0.10};
+  double navigation_xy_tolerance_m_{0.25};
+  double navigation_z_tolerance_m_{0.15};
+  double navigation_speed_tolerance_mps_{0.35};
+  double navigation_stable_sec_{0.5};
+  double navigation_timeout_sec_{5.0};
   double landing_stable_sec_{1.0};
-  double landing_timeout_sec_{10.0};
   double disarm_timeout_sec_{12.0};
   double auto_land_wait_sec_{30.0};
 };

@@ -25,6 +25,7 @@ public:
   FailureAction onTaskFailure(bool control_reliable) const;
   bool forceDisarmAllowed() const;
 
+  static double nearestCardinalYaw(double yaw);
   static std::vector<LocalPoint> squareWaypoints(const LocalPoint& origin,
                                                  double height,
                                                  double side_length,

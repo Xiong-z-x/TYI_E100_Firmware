@@ -477,6 +477,20 @@ bool FlightInterface::waitLanded(
   return false;
 }
 
+bool FlightInterface::waitDisarmed(const ros::Duration& timeout) {
+  const ros::WallTime deadline =
+      ros::WallTime::now() + ros::WallDuration(timeout.toSec());
+  ros::WallRate rate(rate_hz_);
+  while (ros::ok() && ros::WallTime::now() < deadline) {
+    ros::spinOnce();
+    if (!armed()) {
+      return true;
+    }
+    rate.sleep();
+  }
+  return false;
+}
+
 bool FlightInterface::disarmUntilLocked(const ros::Duration& timeout) {
   const ros::WallTime deadline =
       ros::WallTime::now() + ros::WallDuration(timeout.toSec());

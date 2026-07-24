@@ -32,6 +32,7 @@ SafetyConfig SafetyConfig::uav051Defaults() {
       {"RC_MAP_ARM_SW", 6.0},
       {"RC_MAP_KILL_SW", 7.0},
       {"RC_MAP_FLTMODE", 5.0},
+      {"COM_DISARM_LAND", 2.0},
       {"EKF2_EV_CTRL", 15.0},
       {"EKF2_GPS_CTRL", 0.0},
   };

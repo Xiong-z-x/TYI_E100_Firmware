@@ -17,13 +17,13 @@
 - Modify: `workspace/src/mission_control/test/test_safety_gate.cpp`
 - Modify: `workspace/src/mission_control/test/test_default_off.py`
 
-- [ ] Add a test that expects `nearestCardinalYaw(2.899)` to equal `pi`.
-- [ ] Add a test that expects `COM_DISARM_LAND=2.0` while preserving all
+- [x] Add a test that expects `nearestCardinalYaw(2.899)` to equal `pi`.
+- [x] Add a test that expects `COM_DISARM_LAND=2.0` while preserving all
   existing RC/Kill failsafe parameters.
-- [ ] Add a static safety test that requires normal landing to request
+- [x] Add a static safety test that requires normal landing to request
   `AUTO.LAND`, disable the setpoint publisher, and contain no forced-disarm
   command or ground-target hold.
-- [ ] Run the focused tests in the current ARM64 image and verify they fail for
+- [x] Run the focused tests in the current ARM64 image and verify they fail for
   the missing r6 behavior.
 
 ### Task 2: Implement Coordinate Go-To And Auto-Land
@@ -37,11 +37,11 @@
 - Modify: `workspace/src/mission_control/src/safety_gate.cpp`
 - Modify: `workspace/src/mission_control/config/mission_control.yaml`
 
-- [ ] Implement `nearestCardinalYaw` with `round(yaw / (pi/2)) * (pi/2)`.
-- [ ] Set the commanded mission yaw to that result during the first hover.
-- [ ] After every coordinate ramp, call `waitUntilNear` with navigation
+- [x] Implement `nearestCardinalYaw` with `round(yaw / (pi/2)) * (pi/2)`.
+- [x] Set the commanded mission yaw to that result during the first hover.
+- [x] After every coordinate ramp, call `waitUntilNear` with navigation
   tolerance parameters and fail safely on timeout.
-- [ ] Replace normal ground-target descent with:
+- [x] Replace normal ground-target descent with:
 
 ```cpp
 if (!flight_.requestMode("AUTO.LAND")) {
@@ -54,12 +54,12 @@ if (!flight_.waitLanded(ros::Duration(auto_land_wait_sec_),
   failure_action_ = FailureAction::StopSetpoints;
   return false;
 }
-return !disarm || flight_.disarmUntilLocked(
-                         ros::Duration(disarm_timeout_sec_));
+return !disarm ||
+       flight_.waitDisarmed(ros::Duration(disarm_timeout_sec_));
 ```
 
-- [ ] Require `COM_DISARM_LAND=2.0` in the UAV051 preflight snapshot.
-- [ ] Run all mission-control tests and compile the complete mission node.
+- [x] Require `COM_DISARM_LAND=2.0` in the UAV051 preflight snapshot.
+- [x] Run all mission-control tests and compile the complete mission node.
 
 ### Task 3: Deploy And Record
 

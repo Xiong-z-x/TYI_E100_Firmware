@@ -72,6 +72,7 @@ TEST(SafetyGateTest, KeepsRcFailsafeEnabledWithOneSecondDropoutTolerance) {
   EXPECT_DOUBLE_EQ(1.0, config.expected_px4_params.at("COM_RC_LOSS_T"));
   EXPECT_DOUBLE_EQ(3.0, config.expected_px4_params.at("NAV_RCL_ACT"));
   EXPECT_DOUBLE_EQ(0.0, config.expected_px4_params.at("COM_RCL_EXCEPT"));
+  EXPECT_DOUBLE_EQ(2.0, config.expected_px4_params.at("COM_DISARM_LAND"));
 }
 
 TEST(SafetyGateTest, ReportsEveryIndependentFailure) {

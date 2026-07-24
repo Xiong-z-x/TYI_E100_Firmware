@@ -48,13 +48,15 @@ takeoff:
   stable_sec: 1.2
   timeout_sec: 12.0
 
+navigation:
+  xy_tolerance_m: 0.25
+  z_tolerance_m: 0.15
+  speed_tolerance_mps: 0.35
+  stable_sec: 0.5
+  timeout_sec: 5.0
+
 landing:
-  descent_rate_mps: 0.40
-  floor_height_m: 0.00
-  z_tolerance_m: 0.06
-  vertical_speed_tolerance_mps: 0.10
   stable_sec: 1.0
-  timeout_sec: 10.0
   disarm_timeout_sec: 12.0
   auto_land_wait_sec: 30.0
 
@@ -64,4 +66,3 @@ test_flight:
   move_distance_m: 1.0
   move_duration_sec: 3.0
   hover_sec: 3.0
-  land_duration_sec: 3.0

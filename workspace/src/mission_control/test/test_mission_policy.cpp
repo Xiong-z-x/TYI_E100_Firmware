@@ -65,6 +65,14 @@ TEST(MissionPolicyTest, AlignsSquareFirstLegWithInitialYaw) {
   EXPECT_DOUBLE_EQ(points[0].z, points[4].z);
 }
 
+TEST(MissionPolicyTest, SnapsMeasuredYawToNearestLocalCoordinateAxis) {
+  const double pi = std::acos(-1.0);
+
+  EXPECT_NEAR(pi, MissionPolicy::nearestCardinalYaw(2.899), 1e-12);
+  EXPECT_NEAR(-pi / 2.0,
+              MissionPolicy::nearestCardinalYaw(-1.328), 1e-12);
+}
+
 }  // namespace
 }  // namespace mission_control
 

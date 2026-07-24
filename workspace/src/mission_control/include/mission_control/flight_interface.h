@@ -48,6 +48,7 @@ public:
   void lock();
   bool waitLanded(const ros::Duration& timeout,
                   const ros::Duration& stable_duration);
+  bool waitDisarmed(const ros::Duration& timeout);
   bool disarmUntilLocked(const ros::Duration& timeout);
 
   geometry_msgs::Point currentPosition() const;

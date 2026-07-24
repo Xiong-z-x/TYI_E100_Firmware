@@ -19,10 +19,6 @@ public:
     nh.param("test_flight/move_duration_sec", move_duration_sec_,
              move_duration_sec_);
     nh.param("test_flight/hover_sec", hover_sec_, hover_sec_);
-    nh.param("test_flight/land_duration_sec", land_duration_sec_,
-             land_duration_sec_);
-    nh.param("landing/floor_height_m", landing_floor_height_m_,
-             landing_floor_height_m_);
   }
 
   std::string name() const override { return "test_flight"; }
@@ -34,6 +30,12 @@ public:
     if (!mission.takeoff(takeoff_height_m_, takeoff_duration_sec_)) {
       return false;
     }
+    const double route_yaw =
+        MissionPolicy::nearestCardinalYaw(mission.initialYaw());
+    ROS_INFO(
+        "route yaw alignment initial=%.3f cardinal=%.3f correction=%.3f",
+        mission.initialYaw(), route_yaw, route_yaw - mission.initialYaw());
+    mission.setMissionYaw(route_yaw);
     if (!mission.hover(hover_sec_)) {
       return false;
     }
@@ -43,7 +45,7 @@ public:
     const std::vector<LocalPoint> waypoints =
         MissionPolicy::squareWaypoints(
             policy_origin, takeoff_height_m_, move_distance_m_,
-            mission.initialYaw());
+            route_yaw);
     for (std::size_t index = 1; index < waypoints.size(); ++index) {
       geometry_msgs::Point target;
       target.x = waypoints[index].x;
@@ -56,7 +58,7 @@ public:
     if (!mission.hover(hover_sec_)) {
       return false;
     }
-    return mission.land(land_duration_sec_, landing_floor_height_m_, true);
+    return mission.land(true);
   }
 
 private:
@@ -65,8 +67,6 @@ private:
   double move_distance_m_{0.6};
   double move_duration_sec_{4.0};
   double hover_sec_{2.0};
-  double land_duration_sec_{5.0};
-  double landing_floor_height_m_{-0.03};
 };
 
 }  // namespace
