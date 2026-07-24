@@ -3,7 +3,10 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+from types import SimpleNamespace
+from unittest import mock
 
+import camera.orin_camera_stream as camera_service
 from camera.orin_camera_stream import CameraHttpServer, FrameBuffer
 
 
@@ -108,6 +111,66 @@ class CameraHttpServerTests(unittest.TestCase):
         )
         self.assertEqual(blank, b"\r\n")
         self.assertEqual(frame, JPEG)
+
+
+class ServiceLifecycleTests(unittest.TestCase):
+    def test_camera_start_failure_does_not_shutdown_an_unstarted_server(self) -> None:
+        class FailingCamera:
+            def __init__(self) -> None:
+                self.stop_called = False
+
+            def start(self) -> None:
+                raise RuntimeError("camera start failed")
+
+            def stop(self) -> None:
+                self.stop_called = True
+
+        class UnstartedServer:
+            def __init__(self) -> None:
+                self.shutdown_called = False
+                self.close_called = False
+
+            def serve_forever(self) -> None:
+                raise AssertionError("server thread must not start")
+
+            def shutdown(self) -> None:
+                self.shutdown_called = True
+
+            def server_close(self) -> None:
+                self.close_called = True
+
+        args = SimpleNamespace(
+            host="127.0.0.1",
+            port=0,
+            device="/dev/camera-test",
+            width=1280,
+            height=720,
+            capture_fps=60,
+            stream_fps=15,
+            max_frame_age=2.0,
+        )
+        camera = FailingCamera()
+        server = UnstartedServer()
+
+        with mock.patch.object(
+            camera_service,
+            "parse_args",
+            return_value=args,
+        ), mock.patch.object(
+            camera_service,
+            "CameraPipeline",
+            return_value=camera,
+        ), mock.patch.object(
+            camera_service,
+            "CameraHttpServer",
+            return_value=server,
+        ), mock.patch.object(camera_service.signal, "signal"):
+            with self.assertRaisesRegex(RuntimeError, "camera start failed"):
+                camera_service.main()
+
+        self.assertFalse(server.shutdown_called)
+        self.assertTrue(server.close_called)
+        self.assertTrue(camera.stop_called)
 
 
 if __name__ == "__main__":
