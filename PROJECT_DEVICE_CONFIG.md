@@ -153,8 +153,8 @@ propeller-off state, and position stability under actual motor vibration.
   `mission-safe-uav051-20260724`
 - Manual-flight rollback baseline:
   `53de4c7a4d13ca66af4e6560be57fdff1359a8f7`
-- Runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r2`
-- Runtime image ID: `sha256:3f10521503c5...`
+- Runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r3`
+- Runtime image ID: `sha256:04b5d14278bf...`
 - Base image preserved:
   `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`
 - Runtime environment backup:
@@ -199,3 +199,7 @@ Post-deploy evidence:
 - no mission node and no publisher on `/mavros/setpoint_raw/local`;
 - MAVROS connected, vehicle disarmed, manual input present, mode `POSCTL`;
 - 26 ARM64 policy tests and 3 default-off static tests passed.
+
+The final preflight tuning uses a dedicated `3.0 s` freshness limit for the
+measured 0.5 Hz MAVROS battery topic. Control, RC, estimator, and position
+data retain the stricter `0.5 s` limit. The final static test count is 4.
