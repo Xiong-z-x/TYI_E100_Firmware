@@ -161,6 +161,7 @@ private:
   double prestream_sec_{3.0};
   double wait_ready_timeout_sec_{12.0};
   double data_freshness_sec_{0.5};
+  double battery_freshness_sec_{3.0};
   double rate_window_sec_{4.0};
   double odom_stability_window_sec_{3.0};
   double odom_max_abs_position_m_{20.0};

@@ -41,6 +41,8 @@ FlightInterface::FlightInterface(ros::NodeHandle& nh) : nh_(nh) {
   nh_.param("wait_ready_timeout_sec", wait_ready_timeout_sec_,
             wait_ready_timeout_sec_);
   nh_.param("data_freshness_sec", data_freshness_sec_, data_freshness_sec_);
+  nh_.param("battery_freshness_sec", battery_freshness_sec_,
+            battery_freshness_sec_);
   nh_.param("rate_window_sec", rate_window_sec_, rate_window_sec_);
   nh_.param("odom_stability_window_sec", odom_stability_window_sec_,
             odom_stability_window_sec_);
@@ -209,7 +211,8 @@ SafetySnapshot FlightInterface::safetySnapshot(const SafetyConfig& config) {
   snapshot.kill_switch_engaged = killEngaged();
 
   snapshot.battery_fresh =
-      has_battery_ && dataFresh(battery_received_, data_freshness_sec_);
+      has_battery_ &&
+      dataFresh(battery_received_, battery_freshness_sec_);
   snapshot.battery_remaining =
       has_battery_ ? static_cast<double>(battery_.percentage) : -1.0;
 

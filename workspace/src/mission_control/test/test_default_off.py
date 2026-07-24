@@ -34,6 +34,19 @@ class DefaultOffTest(unittest.TestCase):
             self.assertNotIn("mission:=test_flight", text, str(path))
             self.assertNotIn("mission_main", text, str(path))
 
+    def test_battery_freshness_matches_half_hertz_mavros_topic(self) -> None:
+        config = (PACKAGE_ROOT / "config" / "mission_control.yaml").read_text(
+            encoding="utf-8"
+        )
+        interface = (
+            PACKAGE_ROOT / "src" / "flight_interface.cpp"
+        ).read_text(encoding="utf-8")
+        self.assertIn("battery_freshness_sec: 3.0", config)
+        self.assertIn(
+            "dataFresh(battery_received_, battery_freshness_sec_)",
+            interface,
+        )
+
     def test_legacy_boot_service_and_force_disarm_are_absent(self) -> None:
         source_text = "\n".join(
             path.read_text(encoding="utf-8")
