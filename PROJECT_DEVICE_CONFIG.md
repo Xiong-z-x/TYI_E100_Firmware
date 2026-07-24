@@ -148,9 +148,10 @@ propeller-off state, and position stability under actual motor vibration.
 ## Guarded mission module deployed on 2026-07-24
 
 - Mission source fix: `ccae8eab813f13055ff53f6301e5ca7884a74e66`
-- Device deployment commit: `1063547d68e4c97a8e41dd4c75d92b37fde677a3`
+- Final rate-aware deployment:
+  `d01bf4afa3e2d90c190e2896d298274557d7502a`
 - Git branch/tag: `feature/mission-control-safe` /
-  `mission-safe-uav051-20260724`
+  `mission-safe-uav051-20260724-r4`
 - Manual-flight rollback baseline:
   `53de4c7a4d13ca66af4e6560be57fdff1359a8f7`
 - Runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r4`
@@ -181,6 +182,9 @@ PRECHECK PASS - SAFE TO RELEASE KILL
 
 Its mode-0600 one-use receipt was removed after deployment validation, so a
 new check is mandatory immediately before any real test flight.
+
+The final `r4` image passed the full Kill-stage preflight three consecutive
+times. Each run returned zero and printed the pass line above.
 
 The real mission has not been executed. It is fixed to a 1.2 m relative
 takeoff, 3 s hover, 1 m closed square referenced to the takeoff origin, another
