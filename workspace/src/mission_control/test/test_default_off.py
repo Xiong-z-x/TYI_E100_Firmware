@@ -20,6 +20,9 @@ class DefaultOffTest(unittest.TestCase):
         self.assertIn("mission:=${mission}", text)
         self.assertIn("auto_start:=${auto_start}", text)
         self.assertIn("confirm_uav_051:=${confirm}", text)
+        self.assertIn("rosparam load", text)
+        self.assertIn("exec rosrun mission_control mission_main", text)
+        self.assertNotIn("exec roslaunch", text)
 
     def test_runtime_stack_does_not_autostart_mission(self) -> None:
         checked = [

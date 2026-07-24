@@ -49,10 +49,14 @@ run_mission() {
       source /opt/ros/noetic/setup.bash
       source /opt/uav/base_stack/workspace/install_isolated/setup.bash
       source /opt/uav/mission_control_ws/devel/setup.bash
-      exec roslaunch mission_control main_mission.launch \
-        mission:=${mission} \
-        auto_start:=${auto_start} \
-        confirm_uav_051:=${confirm}
+      rosparam delete /mission_main >/dev/null 2>&1 || true
+      rosparam load \
+        /opt/uav/mission_control_ws/src/mission_control/config/mission_control.yaml \
+        /mission_main
+      exec rosrun mission_control mission_main \
+        _mission:=${mission} \
+        _auto_start:=${auto_start} \
+        _confirm_uav_051:=${confirm}
     "
 }
 

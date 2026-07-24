@@ -180,9 +180,13 @@ bool FlightInterface::waitForSafetyObservation(
 }
 
 SafetySnapshot FlightInterface::safetySnapshot(const SafetyConfig& config) {
-  ros::spinOnce();
   SafetySnapshot snapshot;
   readVehicleInfo(&snapshot);
+  snapshot.px4_params = readPx4Params(config);
+  // Service calls above can take longer than the freshness threshold.
+  // Process all queued sensor/state messages immediately before evaluating
+  // their receive times.
+  ros::spinOnce();
 
   snapshot.connected =
       has_state_ && dataFresh(state_received_, data_freshness_sec_) &&
@@ -241,7 +245,6 @@ SafetySnapshot FlightInterface::safetySnapshot(const SafetyConfig& config) {
   snapshot.odom_stable = odomStable(odom_stability_window_sec_);
   snapshot.competing_setpoint_publishers =
       competingSetpointPublisherCount();
-  snapshot.px4_params = readPx4Params(config);
   return snapshot;
 }
 
