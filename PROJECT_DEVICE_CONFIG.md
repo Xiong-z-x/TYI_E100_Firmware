@@ -426,3 +426,82 @@ connected/disarmed/on-ground, `COM_DISARM_LAND` read back through MAVROS as
 `real: 2.0`, all LiDAR/FAST-LIO/MAVROS data paths remained live, and there was
 still no mission node, setpoint publisher, or preflight receipt. The r6 and r5
 images/tags remain available for rollback.
+
+## USB camera baseline on 2026-07-24
+
+The camera connected to the Orin Nano is a standards-compliant USB Video Class
+device:
+
+```text
+USB VID:PID:       05a3:9230
+USB description:   ARC International / USB 2.0 Camera: HD USB Camera
+Kernel driver:     uvcvideo
+USB topology:      USB 2.0 high-speed, 480 Mbit/s
+Capture node:      /dev/video0
+Metadata node:     /dev/video1
+Current USB port:  platform-3610000.xhci-usb-0:3.3:1.0
+```
+
+The device exposes no unique serial number and only reports generic vendor and
+product strings, so the exact retail SKU or image sensor cannot be proven from
+USB enumeration alone. The observed capabilities are:
+
+```text
+MJPEG: 1920x1080@30, 1280x720@60, 1024x768@30,
+       1280x1024@30, 800x600@60, 640x480@120
+YUYV:  1920x1080@6, 1280x720@9, 800x600@20, 640x480@30
+```
+
+The camera exposes automatic white balance and auto/manual exposure controls,
+but no V4L2 autofocus control. Lens focus and useful QR working distance must
+therefore be verified physically.
+
+### Existing single-owner stream
+
+`/dev/video0` is already owned by:
+
+```text
+systemd unit:  orin-camera-stream.service
+process:       /usr/bin/python3 /opt/orin-ground-sender/orin_camera_stream.py
+capture:       1280x720 MJPEG at 60 fps
+HTTP output:   15 fps
+health:        http://127.0.0.1:8090/healthz
+snapshot:      http://127.0.0.1:8090/snapshot.jpg
+stream:        http://127.0.0.1:8090/stream.mjpg
+```
+
+The service is enabled, active, has zero restarts, and uses approximately
+24 MB RAM. A four-second independent LAN client received 4,132,583 bytes
+without interrupting the service, proving that downstream consumers can share
+the existing MJPEG server without reopening the V4L2 device.
+
+The selected perception boundary is therefore:
+
+1. Keep `orin-camera-stream.service` as the only `/dev/video0` owner.
+2. Make the future YOLO/QR process consume
+   `http://127.0.0.1:8090/stream.mjpg`.
+3. Decode/infer at the rate required by the model rather than duplicating
+   camera capture.
+4. Publish only detection results to ROS/the ground-station interface unless a
+   debug image stream is explicitly required.
+
+This avoids a V4L2 ownership conflict with the teammate's RK3588 stream and
+avoids a second MJPEG encoding stage because the camera already outputs JPEG.
+
+The repository variable `MEDIA_CAMERA_PREFERRED_DEVICE` still references the
+obsolete path `platform-3610000.xhci-usb-0:1:1.3-video-index0`; it is not used
+by the active systemd camera service and was deliberately left unchanged.
+Future direct-camera fallback should use the verified `index0` path above or a
+dedicated udev alias, never bare `/dev/video0`.
+
+A decoded evidence frame was saved as:
+
+```text
+C:\nano\camera-analysis\camera_snapshot_20260724.jpg
+SHA-256 FAB3D44397D828A83531C17EBE849E7A2D128DB5653B75DC991B2EE5B77A303D
+```
+
+It is valid `1280x720` RGB JPEG, but the measured mean luma is only `4.97/255`;
+the current view is almost completely black. Before selecting QR size,
+detection distance, lens field of view, or a YOLO input resolution, point the
+camera at a normally lit scene and capture a new frame.
