@@ -153,8 +153,8 @@ propeller-off state, and position stability under actual motor vibration.
   `mission-safe-uav051-20260724`
 - Manual-flight rollback baseline:
   `53de4c7a4d13ca66af4e6560be57fdff1359a8f7`
-- Runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r3`
-- Runtime image ID: `sha256:04b5d14278bf...`
+- Runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r4`
+- Runtime image ID: `sha256:d92019fc2661...`
 - Base image preserved:
   `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`
 - Runtime environment backup:
@@ -200,6 +200,8 @@ Post-deploy evidence:
 - MAVROS connected, vehicle disarmed, manual input present, mode `POSCTL`;
 - 26 ARM64 policy tests and 3 default-off static tests passed.
 
-The final preflight tuning uses a dedicated `3.0 s` freshness limit for the
-measured 0.5 Hz MAVROS battery topic. Control, RC, estimator, and position
-data retain the stricter `0.5 s` limit. The final static test count is 4.
+The final preflight tuning uses rate-specific freshness limits: `1.5 s` for
+the measured 1 Hz MAVROS state/estimator topics, `3.0 s` for the measured
+0.5 Hz battery topic, and the stricter `0.5 s` limit for RC, position, and
+clock data. The snapshot waits up to 3 seconds for a post-service dynamic
+refresh. The final static test count is 5.
