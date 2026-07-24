@@ -67,14 +67,14 @@ return !disarm ||
 - Modify: `.env`
 - Modify: `PROJECT_DEVICE_CONFIG.md`
 
-- [ ] Build immutable image
+- [x] Build immutable image
   `tyi/tyi_e100:0.1.2-mission-safe-r6` from the verified base image.
-- [ ] Recreate only `flight-core` while the vehicle is disarmed and landed.
-- [ ] Read back `COM_DISARM_LAND=2.0` and the unchanged RC/Kill failsafe
+- [x] Recreate only `flight-core` while the vehicle is disarmed and landed.
+- [x] Read back `COM_DISARM_LAND=2.0` and the unchanged RC/Kill failsafe
   parameters.
 - [ ] Run `./scripts/mission check` only when RC Kill is available and engaged;
   otherwise leave no receipt and report that runtime precheck is pending.
-- [ ] Verify no mission node and no publisher on
+- [x] Verify no mission node and no publisher on
   `/mavros/setpoint_raw/local`.
 - [ ] Record ULog ID 8 evidence, commits, image ID, rollback tag, and the
   ground-verification boundary; push the feature branch and r6 tag.

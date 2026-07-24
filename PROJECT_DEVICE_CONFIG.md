@@ -291,3 +291,113 @@ Verification completed without arming or entering OFFBOARD:
 This validates the software build and ground integration only. The new
 RC-gap tolerance and body-heading square still require a controlled flight
 test before they can be considered flight-verified.
+
+## Successful r5 flight diagnosis and r6 ground deployment on 2026-07-24
+
+The second real `test_flight` completed takeoff, the closed square, return,
+hover, and physical touchdown. Evidence was copied to:
+
+```text
+C:\nano\flight-analysis\20260724-110315-r5\
+```
+
+The primary records are:
+
+- mission CSV `mission_20260724_110315.csv`, SHA-256
+  `1F78EAAFFEDE5C797C809E2D506D9141A1A82A9FF1F0BBB3308BEEFE94E4F559`;
+- ROS log `rosout.log`;
+- PX4 ULog `px4-log-id8.ulg`, SHA-256
+  `2B446BB2C7DBE88A33850103706BE3D297174E8B94B9C6DD203E32A35E23D82D`.
+
+### Root cause: route angle
+
+The r5 route used the measured takeoff yaw directly. The recorded yaw was
+`2.899 rad` (`166.1 deg`), so the first 1 m leg was intentionally generated
+as approximately `(-0.97, +0.21)` in local ENU coordinates. The controller
+tracked all four commanded legs accurately: the measured direction error per
+leg was approximately `+0.28`, `+0.68`, `-1.62`, and `-0.73 deg`. The visible
+route-angle error was therefore in route-frame selection, not waypoint
+tracking or FAST-LIO drift.
+
+r6 snaps the captured yaw to the nearest local coordinate axis in 90 degree
+increments. For this flight, `166.1 deg` becomes `180.0 deg`, a `+13.9 deg`
+correction. The post-takeoff hover commands the same snapped yaw, and every
+subsequent waypoint is an absolute `(x, y, z)` target generated on those
+orthogonal axes.
+
+Each go-to now has a second coordinate-convergence stage after the 3 s
+trajectory ramp. A waypoint is accepted only after remaining within:
+
+```text
+horizontal position: 0.25 m
+vertical position:   0.15 m
+3D speed:            0.35 m/s
+stable time:         0.50 s
+extra timeout:       5.00 s
+```
+
+Failure to converge is an ordinary task failure and enters the existing
+controlled-landing path while control remains reliable.
+
+### Root cause: motors continued after touchdown
+
+PX4 ULog ID 8 repeatedly reports:
+
+```text
+[commander] Disarming denied: not landed
+```
+
+During the physical ground-contact interval before the pilot engaged Kill,
+PX4 continued to report `has_low_throttle=false`, `ground_contact=false`, and
+`landed=false`. The r5 mission was still in OFFBOARD and held the exact
+takeoff-origin ground-height setpoint, so the position controller continued
+producing nonzero motor outputs while the landing gear was already touching
+the floor. PX4 correctly rejected every normal disarm request because its land
+detector had not declared landing. Kill then reduced all motor outputs to zero,
+after which PX4 disarmed.
+
+r6 removes the OFFBOARD ground-height hold and repeated disarm requests.
+After returning within the start-point tolerance and completing the final
+hover, the mission requests PX4 `AUTO.LAND`, marks the mission inactive, and
+immediately shuts down its setpoint publisher. PX4 therefore owns descent,
+touchdown detection, and its existing `COM_DISARM_LAND=2.0 s` automatic
+disarm. The mission only observes `landed` and `disarmed`; it does not issue a
+force-disarm command. Kill and any pilot mode takeover retain higher priority.
+
+### r6 implementation and ground evidence
+
+- design commit:
+  `213e3a918f170f948a98d33d90313cbc126b01a8`;
+- source commit:
+  `998ea5389ac2e82a5de17579a18562907c99807f`;
+- deployment-selection commit:
+  `e98bb332b6995357d8a0a39cc1e7abd5faaa56de`;
+- runtime image:
+  `tyi/tyi_e100:0.1.2-mission-safe-r6`;
+- runtime image ID:
+  `sha256:90dc41e246cbe5cea6b27e3b5e18d15abf893333732b61bc62cbd1fc3ed200e6`;
+- preserved rollback image and tag:
+  `tyi/tyi_e100:0.1.2-mission-safe-r5` /
+  `mission-safe-uav051-20260724-r5`.
+
+Verification completed without arming or entering OFFBOARD:
+
+- test-first RED reproduced all three missing r6 behaviors;
+- 32 ARM64 mission-control tests passed with zero failures;
+- the complete mission library and `mission_main` compiled successfully;
+- all three runtime containers became healthy after replacing only
+  `flight-core`;
+- LiDAR approximately `20.9 Hz`, Livox IMU `212.2 Hz`, FAST-LIO `20.3 Hz`,
+  MAVROS vision pose `293.0 Hz`, and PX4 local odometry `20.5 Hz`;
+- PX4 readback:
+  `COM_DISARM_LAND=2.0`, `COM_RC_LOSS_T=1.0`, `NAV_RCL_ACT=3`,
+  `COM_RCL_EXCEPT=0`, `COM_RC_OVERRIDE=3`, `RC_MAP_ARM_SW=6`,
+  `RC_MAP_KILL_SW=7`, and `RC_MAP_FLTMODE=5`;
+- the vehicle remained connected, disarmed, and on ground;
+- no mission node, no mission setpoint publisher, and no preflight receipt
+  were present.
+
+The transmitter was off during final deployment (`manual_input=false`), so the
+Kill-stage `./scripts/mission check` was deliberately not run. r6 is compiled,
+deployed, and ground-integrated, but its new coordinate alignment and
+`AUTO.LAND` behavior still require one controlled flight verification.
