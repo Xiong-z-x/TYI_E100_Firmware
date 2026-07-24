@@ -505,3 +505,86 @@ It is valid `1280x720` RGB JPEG, but the measured mean luma is only `4.97/255`;
 the current view is almost completely black. Before selecting QR size,
 detection distance, lens field of view, or a YOLO input resolution, point the
 camera at a normally lit scene and capture a new frame.
+
+## Repository-owned camera service deployment on 2026-07-24
+
+The protective lens cover was removed and a new frame proved that the camera
+is usable:
+
+```text
+resolution:       1280x720
+mean luma:        68.84/255
+SHA-256:          7A0DB8839A65924D06BA95B28A442708A92297DC1743D831DE9D0B263AD6A09E
+local evidence:   C:\nano\camera-analysis\camera_snapshot_uncovered_20260724.jpg
+```
+
+The repository already contained `docker/media-gateway/app.py`, which supports
+an HTTP MJPEG source and can republish it as RTSP/WebRTC. It is a downstream
+consumer, not the UVC owner. There is no runnable repository `vision-gateway`
+or YOLO/QR implementation yet.
+
+The former `/opt/orin-ground-sender/orin_camera_stream.py` deployment was
+replaced by the repository-managed implementation:
+
+```text
+systemd unit:     orin-camera-stream.service
+source:           /home/tfboys_nano/TYI_E100_Firmware/camera/orin_camera_stream.py
+stable device:    /dev/v4l/by-id/usb-HD_Camera_Manufacturer_USB_2.0_Camera-video-index0
+capture:          1280x720 MJPEG at 60 fps
+HTTP fan-out:     15 fps
+health:           http://127.0.0.1:8090/healthz
+snapshot:         http://127.0.0.1:8090/snapshot.jpg
+stream:           http://127.0.0.1:8090/stream.mjpg
+backup:           /var/backups/tyi-camera/20260724T135808Z
+```
+
+The old `/opt` script remains only as inactive rollback material and has no
+running process. `configs/media-gateway/config.json` now consumes
+`http://127.0.0.1:8090/stream.mjpg`; the optional media container was not
+started during this deployment.
+
+Verification evidence:
+
+- all 9 camera tests passed on Windows and the Orin;
+- exactly one PID owned `/dev/video0`;
+- two concurrent four-second clients each received about 7.61 MB with HTTP
+  200;
+- a manual systemd restart changed the PID and recovered without a restart
+  loop;
+- the repository service frame was 1280x720 with mean luma 63.61/255 and
+  SHA-256
+  `2A2D7259746FB77D33179794EED1AAE7B926FBB7BB9A24A7F1199FE19B0FD4B8`;
+- a Windows LAN snapshot request returned HTTP 200;
+- `flight-core`, `control-gateway`, and `pointcloud-gateway` remained healthy;
+- MAVROS remained connected, disarmed, and on the ground;
+- LiDAR, FAST-LIO odometry, and MAVROS vision pose measured 20.287 Hz,
+  20.296 Hz, and 235.180 Hz;
+- Bluetooth service remained active and the Intel `8087:0029` device was
+  unchanged.
+
+Repository commits:
+
+```text
+feature branch:
+  0354b9f  design
+  d6d721b  service and tests
+  c58bec9  deploy wiring
+  d4771b6  startup-failure cleanup fix
+Nano develop:
+  eec8a02  design
+  2f0fe5b  service and tests
+  092d344  deploy wiring
+  bc47dfe  startup-failure cleanup fix
+```
+
+The Nano still uses the non-unique hostname `ubuntu`. Do not use
+`ubuntu.local` for the RK3588 camera client: it currently resolves to the
+other group's `192.168.0.124`. The current verified camera endpoint is:
+
+```text
+http://192.168.0.108:8090/stream.mjpg
+wlan0 MAC: 70:a6:cc:0d:8f:5e
+```
+
+Because the WLAN address is DHCP-assigned, verify this MAC before updating the
+RK3588 endpoint after any IP change.
