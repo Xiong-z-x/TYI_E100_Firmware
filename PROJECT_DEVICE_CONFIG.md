@@ -401,3 +401,28 @@ The transmitter was off during final deployment (`manual_input=false`), so the
 Kill-stage `./scripts/mission check` was deliberately not run. r6 is compiled,
 deployed, and ground-integrated, but its new coordinate alignment and
 `AUTO.LAND` behavior still require one controlled flight verification.
+
+### Final parameter-type audit: r6.1
+
+The completion audit found that `COM_DISARM_LAND` is a MAVROS real-valued
+parameter. The first r6 safety gate required the correct value `2.0`, but the
+parameter type policy would have read the integer field (`0`) and caused a
+false preflight rejection. This did not affect the deployed flight behavior,
+but it would have blocked the next `./scripts/mission check`.
+
+Commit `5bb0f00d1ff5bd5048785e35c0785c524ac71053` adds
+`COM_DISARM_LAND` to the real-parameter policy and adds a regression test.
+The immutable final image is:
+
+```text
+tyi/tyi_e100:0.1.2-mission-safe-r6.1
+sha256:de5faae0e3a7e1025f195fbea05a46b1ce6063a8f7be6654b9e14f637410503c
+```
+
+The ARM64 package was rebuilt and again passed all 32 Catkin test targets with
+zero errors or failures; the updated Python safety suite passed all 8 checks.
+After deployment, all three containers were healthy, the vehicle remained
+connected/disarmed/on-ground, `COM_DISARM_LAND` read back through MAVROS as
+`real: 2.0`, all LiDAR/FAST-LIO/MAVROS data paths remained live, and there was
+still no mission node, setpoint publisher, or preflight receipt. The r6 and r5
+images/tags remain available for rollback.

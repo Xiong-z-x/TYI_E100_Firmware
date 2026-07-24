@@ -78,3 +78,7 @@ return !disarm ||
   `/mavros/setpoint_raw/local`.
 - [x] Record ULog ID 8 evidence, commits, image ID, rollback tag, and the
   ground-verification boundary; push the feature branch and r6 tag.
+
+Post-deployment audit: r6.1 additionally fixes the MAVROS value type used to
+read `COM_DISARM_LAND`, adds a regression test, rebuilds the immutable image,
+and repeats ARM64 and ground-runtime verification.
