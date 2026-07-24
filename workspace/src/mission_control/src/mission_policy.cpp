@@ -24,20 +24,31 @@ bool MissionPolicy::forceDisarmAllowed() const {
 }
 
 std::vector<LocalPoint> MissionPolicy::squareWaypoints(
-    const LocalPoint& origin, double height, double side_length) {
+    const LocalPoint& origin, double height, double side_length, double yaw) {
   if (!std::isfinite(height) || height <= 0.0 ||
-      !std::isfinite(side_length) || side_length <= 0.0) {
+      !std::isfinite(side_length) || side_length <= 0.0 ||
+      !std::isfinite(yaw)) {
     throw std::invalid_argument(
-        "height and side_length must be finite and positive");
+        "height and side_length must be finite and positive; yaw must be finite");
   }
 
   const double z = origin.z + height;
+  const double cos_yaw = std::cos(yaw);
+  const double sin_yaw = std::sin(yaw);
+  const auto rotate = [&](double forward, double left) {
+    return LocalPoint{
+        origin.x + forward * cos_yaw - left * sin_yaw,
+        origin.y + forward * sin_yaw + left * cos_yaw,
+        z,
+    };
+  };
+
   return {
-      {origin.x, origin.y, z},
-      {origin.x + side_length, origin.y, z},
-      {origin.x + side_length, origin.y + side_length, z},
-      {origin.x, origin.y + side_length, z},
-      {origin.x, origin.y, z},
+      rotate(0.0, 0.0),
+      rotate(side_length, 0.0),
+      rotate(side_length, side_length),
+      rotate(0.0, side_length),
+      rotate(0.0, 0.0),
   };
 }
 

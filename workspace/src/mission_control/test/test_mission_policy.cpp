@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include <gtest/gtest.h>
 
 #include "mission_control/mission_policy.h"
@@ -27,7 +29,7 @@ TEST(MissionPolicyTest, NeverAllowsForceDisarm) {
 TEST(MissionPolicyTest, AnchorsSquareToTakeoffOrigin) {
   const LocalPoint origin{2.0, -3.0, 0.4};
   const std::vector<LocalPoint> points =
-      MissionPolicy::squareWaypoints(origin, 1.2, 1.0);
+      MissionPolicy::squareWaypoints(origin, 1.2, 1.0, 0.0);
 
   ASSERT_EQ(5U, points.size());
   EXPECT_DOUBLE_EQ(2.0, points[0].x);
@@ -39,6 +41,25 @@ TEST(MissionPolicyTest, AnchorsSquareToTakeoffOrigin) {
   EXPECT_DOUBLE_EQ(-2.0, points[2].y);
   EXPECT_DOUBLE_EQ(2.0, points[3].x);
   EXPECT_DOUBLE_EQ(-2.0, points[3].y);
+  EXPECT_DOUBLE_EQ(points[0].x, points[4].x);
+  EXPECT_DOUBLE_EQ(points[0].y, points[4].y);
+  EXPECT_DOUBLE_EQ(points[0].z, points[4].z);
+}
+
+TEST(MissionPolicyTest, AlignsSquareFirstLegWithInitialYaw) {
+  const double half_pi = std::acos(-1.0) / 2.0;
+  const LocalPoint origin{2.0, -3.0, 0.4};
+  const std::vector<LocalPoint> points =
+      MissionPolicy::squareWaypoints(origin, 1.2, 1.0, half_pi);
+
+  ASSERT_EQ(5U, points.size());
+  EXPECT_NEAR(2.0, points[1].x, 1e-12);
+  EXPECT_NEAR(-2.0, points[1].y, 1e-12);
+  EXPECT_NEAR(1.0, points[2].x, 1e-12);
+  EXPECT_NEAR(-2.0, points[2].y, 1e-12);
+  EXPECT_NEAR(1.0, points[3].x, 1e-12);
+  EXPECT_NEAR(-3.0, points[3].y, 1e-12);
+  EXPECT_DOUBLE_EQ(1.6, points[1].z);
   EXPECT_DOUBLE_EQ(points[0].x, points[4].x);
   EXPECT_DOUBLE_EQ(points[0].y, points[4].y);
   EXPECT_DOUBLE_EQ(points[0].z, points[4].z);

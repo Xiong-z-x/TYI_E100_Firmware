@@ -24,7 +24,7 @@ SafetyConfig SafetyConfig::uav051Defaults() {
       {"MAV_SYS_ID", 51.0},
       {"COM_OF_LOSS_T", 1.0},
       {"COM_OBL_RC_ACT", 0.0},
-      {"COM_RC_LOSS_T", 0.5},
+      {"COM_RC_LOSS_T", 1.0},
       {"NAV_RCL_ACT", 3.0},
       {"COM_RCL_EXCEPT", 0.0},
       {"COM_RC_OVERRIDE", 3.0},

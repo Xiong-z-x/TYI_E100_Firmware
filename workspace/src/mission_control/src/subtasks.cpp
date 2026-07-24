@@ -42,7 +42,8 @@ public:
     const LocalPoint policy_origin{origin.x, origin.y, origin.z};
     const std::vector<LocalPoint> waypoints =
         MissionPolicy::squareWaypoints(
-            policy_origin, takeoff_height_m_, move_distance_m_);
+            policy_origin, takeoff_height_m_, move_distance_m_,
+            mission.initialYaw());
     for (std::size_t index = 1; index < waypoints.size(); ++index) {
       geometry_msgs::Point target;
       target.x = waypoints[index].x;

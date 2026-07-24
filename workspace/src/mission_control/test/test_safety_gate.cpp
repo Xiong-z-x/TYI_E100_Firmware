@@ -66,6 +66,14 @@ TEST(SafetyGateTest, AcceptsVerifiedUav051AfterKillRelease) {
   EXPECT_TRUE(result.failures.empty());
 }
 
+TEST(SafetyGateTest, KeepsRcFailsafeEnabledWithOneSecondDropoutTolerance) {
+  const SafetyConfig config = SafetyConfig::uav051Defaults();
+
+  EXPECT_DOUBLE_EQ(1.0, config.expected_px4_params.at("COM_RC_LOSS_T"));
+  EXPECT_DOUBLE_EQ(3.0, config.expected_px4_params.at("NAV_RCL_ACT"));
+  EXPECT_DOUBLE_EQ(0.0, config.expected_px4_params.at("COM_RCL_EXCEPT"));
+}
+
 TEST(SafetyGateTest, ReportsEveryIndependentFailure) {
   const SafetyConfig config = SafetyConfig::uav051Defaults();
   SafetySnapshot snapshot = makeValidSnapshot(true);

@@ -27,7 +27,8 @@ public:
 
   static std::vector<LocalPoint> squareWaypoints(const LocalPoint& origin,
                                                  double height,
-                                                 double side_length);
+                                                 double side_length,
+                                                 double yaw);
 };
 
 }  // namespace mission_control
