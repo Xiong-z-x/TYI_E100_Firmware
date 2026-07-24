@@ -95,19 +95,19 @@ Expected: zero failures.
 - Modify: `.env`
 - Modify: `PROJECT_DEVICE_CONFIG.md`
 
-- [ ] **Step 1: Set the next immutable image tag**
+- [x] **Step 1: Set the next immutable image tag**
 
 Set `IMAGE_NAME=tyi/tyi_e100:0.1.2-mission-safe-r5`.
 
-- [ ] **Step 2: Build on the Jetson Nano**
+- [x] **Step 2: Build on the Jetson Nano**
 
 Build the ARM64 mission image from the verified current base and confirm the resulting tag exists.
 
-- [ ] **Step 3: Deploy with Kill engaged**
+- [x] **Step 3: Deploy with Kill engaged**
 
 Confirm the vehicle is disarmed, landed, in `POSCTL`, and Kill is engaged. Replace only `flight-core`; do not start a mission.
 
-- [ ] **Step 4: Apply and read back the PX4 parameter**
+- [x] **Step 4: Apply and read back the PX4 parameter**
 
 Set `COM_RC_LOSS_T=1.0` through MAVROS, then read back:
 
@@ -117,10 +117,10 @@ NAV_RCL_ACT=3
 COM_RCL_EXCEPT=0
 ```
 
-- [ ] **Step 5: Run non-flight precheck**
+- [x] **Step 5: Run non-flight precheck**
 
 Run `./scripts/mission check` while Kill remains engaged. Expected: precheck passes, no arming, no OFFBOARD transition, and no mission setpoint publisher remains active.
 
-- [ ] **Step 6: Record evidence and commit**
+- [x] **Step 6: Record evidence and commit**
 
 Record the ULog root cause, exact parameter delta, test/build results, and rollback tag. Commit and push the feature branch only after verification.

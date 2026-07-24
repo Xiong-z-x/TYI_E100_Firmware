@@ -186,7 +186,8 @@ new check is mandatory immediately before any real test flight.
 The final `r4` image passed the full Kill-stage preflight three consecutive
 times. Each run returned zero and printed the pass line above.
 
-The real mission has not been executed. It is fixed to a 1.2 m relative
+At the time of the `r4` deployment, the real mission had not been executed. It
+was fixed to a 1.2 m relative
 takeoff, 3 s hover, 1 m closed square referenced to the takeoff origin, another
 3 s hover, controlled descent, landed confirmation, and normal disarm.
 
@@ -209,3 +210,84 @@ the measured 1 Hz MAVROS state/estimator topics, `3.0 s` for the measured
 0.5 Hz battery topic, and the stricter `0.5 s` limit for RC, position, and
 clock data. The snapshot waits up to 3 seconds for a post-service dynamic
 refresh. The final static test count is 5.
+
+## First program-flight diagnosis and r5 ground deployment on 2026-07-24
+
+The first real `test_flight` using `r4` took off to about 1.2 m, completed the
+initial hover, started the first square leg, then PX4 entered `AUTO.LAND`.
+The aircraft landed and disarmed normally.
+
+Three independent records identify the same sequence:
+
+- mission CSV:
+  `/home/tfboys_nano/TYI_E100_Firmware/logs/mission-control/mission_20260724_102446.csv`;
+- ROS log:
+  `/home/tfboys_nano/TYI_E100_Firmware/logs/ros/2b1ec34a-1dd2-11b2-8e6d-4449c01d7f90/rosout.log`;
+- PX4 ULog:
+  `/home/tfboys_nano/TYI_E100_Firmware/logs/flight-monitor/px4-log-id7.ulg`,
+  SHA-256
+  `820189C4F7D8DB8BA0D6568A3D29662E4A1020C868C04A9F47658C84ED5AFC08`.
+
+The ULog shows:
+
+- `manual_control_signal_lost` changed from `0` to `1` about 12.562 s after
+  arming and returned to `0` about 0.119 s later;
+- the surrounding SBUS `input_rc` samples contain an approximately 0.708 s
+  gap;
+- the configured `COM_RC_LOSS_T=0.5` therefore activated PX4 RC-loss failsafe;
+- `NAV_RCL_ACT=3` selected landing;
+- local-position validity remained true and dead reckoning remained false;
+- `offboard_control_signal_lost` occurred only after the mission yielded and
+  stopped setpoints.
+
+Therefore this event was not caused by FAST-LIO position invalidity, MAVROS
+setpoint loss, or the square state machine. The independent earlier rosbag also
+contained repeated RC gaps, including a maximum gap of about 0.980 s.
+
+The observed rearward motion was a coordinate-frame issue, not an unintended
+extra command. `r4` defined the first square leg as map-frame ENU `+X`, while
+the captured initial yaw was about 2.929 rad, so map `+X` was nearly behind the
+aircraft.
+
+The `r5` change is deliberately limited to:
+
+- `COM_RC_LOSS_T`: `0.5 -> 1.0` seconds;
+- keep `NAV_RCL_ACT=3` (`Land`);
+- keep `COM_RCL_EXCEPT=0`, so OFFBOARD is not exempt from RC-loss protection;
+- rotate the existing square offsets by the captured initial yaw, making the
+  first leg body-forward while preserving the closed 1 m square;
+- no change to Kill priority, manual POSCTL takeover, normal-failure landing,
+  communication-loss behavior, motor mapping, FAST-LIO, MAVROS, or EKF
+  configuration.
+
+Deployment and rollback identifiers:
+
+- source commit: `fbcaaa71a73c7a4ea71650abb2af6a9763ef7c78`;
+- runtime image: `tyi/tyi_e100:0.1.2-mission-safe-r5`;
+- runtime image ID:
+  `sha256:a9060308db6cbfbefaf76d46efdb35af4714307fe50b404de3f6cf1a669e5bf5`;
+- Nano pre-change tag: `pre-mission-safe-r5-20260724`;
+- previous runtime image retained:
+  `tyi/tyi_e100:0.1.2-mission-safe-r4`.
+
+Verification completed without arming or entering OFFBOARD:
+
+- test-first RED: the old three-argument square API rejected the new
+  yaw-aligned test;
+- GREEN: 30 ARM64 mission-control tests, zero failures;
+- full mission node and library compilation succeeded;
+- image build succeeded from
+  `tyi/tyi_e100:0.1.2-shared-monotonic-ekf-mavros200`;
+- PX4 readback:
+  `COM_RC_LOSS_T=1.0`, `NAV_RCL_ACT=3`, `COM_RCL_EXCEPT=0`;
+- `./scripts/mission check` returned
+  `PRECHECK PASS - SAFE TO RELEASE KILL`;
+- after the check, the vehicle remained disarmed, landed, in `POSCTL`, with
+  CH7 Kill high;
+- no `mission_main` node and no publisher on
+  `/mavros/setpoint_raw/local`;
+- the generated one-use preflight receipt was deleted.
+
+This validates the software build and ground integration only. The new
+RC-gap tolerance and body-heading square still require a controlled flight
+test before they can be considered flight-verified.
