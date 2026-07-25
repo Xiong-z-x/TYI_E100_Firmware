@@ -76,6 +76,7 @@ class Settings:
     max_box_width_ratio: float
     max_box_height_ratio: float
     max_box_area_ratio: float
+    min_border_margin_ratio: float
     confirm_hits: int
     max_missed: int
     event_log_path: str
@@ -141,6 +142,10 @@ class Settings:
             max_box_area_ratio=env_float(
                 "VISION_MAX_BOX_AREA_RATIO",
                 float(inference.get("maxBoxAreaRatio", 0.25)),
+            ),
+            min_border_margin_ratio=env_float(
+                "VISION_MIN_BORDER_MARGIN_RATIO",
+                float(inference.get("minBorderMarginRatio", 0.005)),
             ),
             confirm_hits=env_int(
                 "VISION_CONFIRM_HITS", int(tracking.get("confirmHits", 3))
@@ -264,6 +269,7 @@ class SharedState:
                         "maxWidthRatio": self.settings.max_box_width_ratio,
                         "maxHeightRatio": self.settings.max_box_height_ratio,
                         "maxAreaRatio": self.settings.max_box_area_ratio,
+                        "minBorderMarginRatio": self.settings.min_border_margin_ratio,
                     },
                     "error": self.model_error,
                 },
@@ -374,6 +380,7 @@ class ModelRunner:
                     self.settings.max_box_width_ratio,
                     self.settings.max_box_height_ratio,
                     self.settings.max_box_area_ratio,
+                    self.settings.min_border_margin_ratio,
                 ):
                     continue
                 detections.append(

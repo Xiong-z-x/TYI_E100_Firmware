@@ -44,6 +44,7 @@ def box_within_frame_limits(
     max_width_ratio: float,
     max_height_ratio: float,
     max_area_ratio: float,
+    min_border_margin_ratio: float,
 ) -> bool:
     if frame_width <= 0 or frame_height <= 0:
         return False
@@ -52,8 +53,14 @@ def box_within_frame_limits(
     if width <= 0.0 or height <= 0.0:
         return False
     frame_area = float(frame_width * frame_height)
+    margin_x = frame_width * min_border_margin_ratio
+    margin_y = frame_height * min_border_margin_ratio
     return (
-        width / frame_width <= max_width_ratio
+        box[0] >= margin_x
+        and box[1] >= margin_y
+        and box[2] <= frame_width - margin_x
+        and box[3] <= frame_height - margin_y
+        and width / frame_width <= max_width_ratio
         and height / frame_height <= max_height_ratio
         and width * height / frame_area <= max_area_ratio
     )

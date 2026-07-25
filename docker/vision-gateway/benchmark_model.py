@@ -92,6 +92,7 @@ def main() -> int:
     parser.add_argument("--max-box-width-ratio", type=float, default=0.70)
     parser.add_argument("--max-box-height-ratio", type=float, default=0.70)
     parser.add_argument("--max-box-area-ratio", type=float, default=0.25)
+    parser.add_argument("--min-border-margin-ratio", type=float, default=0.005)
     args = parser.parse_args()
 
     classes = [item.strip() for item in args.classes.split(",") if item.strip()]
@@ -146,6 +147,7 @@ def main() -> int:
                     args.max_box_width_ratio,
                     args.max_box_height_ratio,
                     args.max_box_area_ratio,
+                    args.min_border_margin_ratio,
                 ):
                     predictions.append(
                         {

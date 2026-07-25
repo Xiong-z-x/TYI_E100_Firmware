@@ -32,6 +32,7 @@ class BoxTests(unittest.TestCase):
                 0.70,
                 0.70,
                 0.25,
+                0.005,
             )
         )
         self.assertFalse(
@@ -42,6 +43,18 @@ class BoxTests(unittest.TestCase):
                 0.70,
                 0.70,
                 0.25,
+                0.005,
+            )
+        )
+        self.assertFalse(
+            box_within_frame_limits(
+                (990.0, 160.0, 1280.0, 625.0),
+                1280,
+                720,
+                0.70,
+                0.70,
+                0.25,
+                0.005,
             )
         )
 

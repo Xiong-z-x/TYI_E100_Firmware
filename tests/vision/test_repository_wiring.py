@@ -33,6 +33,7 @@ class RepositoryWiringTests(unittest.TestCase):
         runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
         self.assertEqual(runtime["inference"]["confidence"], 0.001)
         self.assertEqual(runtime["inference"]["maxBoxAreaRatio"], 0.25)
+        self.assertEqual(runtime["inference"]["minBorderMarginRatio"], 0.005)
 
     def test_runtime_source_does_not_reference_video_devices(self) -> None:
         source = (ROOT / "docker" / "vision-gateway" / "app.py").read_text(

@@ -25,7 +25,8 @@
     "maxDetections": 30,
     "maxBoxWidthRatio": 0.70,
     "maxBoxHeightRatio": 0.70,
-    "maxBoxAreaRatio": 0.25
+    "maxBoxAreaRatio": 0.25,
+    "minBorderMarginRatio": 0.005
   },
   "tracking": {
     "confirmHits": 3,
