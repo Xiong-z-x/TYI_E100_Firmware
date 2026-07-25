@@ -694,17 +694,21 @@ score distribution for the small printed targets was much lower. Confidence
 empty-scene tiger false positives whose boxes covered most of the frame.
 The final runtime therefore combines `0.001` confidence with aerial geometry
 limits: width and height no more than 70% of the frame and box area no more
-than 25%. After this correction, a 406-frame live empty-scene test produced
-zero detections and zero confirmed events.
+than 25%. An initial 406-frame test was clean, but a longer 4,834-frame run
+exposed persistent peacock/tiger detections clipped by the right image edge
+where a green tissue box was visible. A 0.5% border margin now rejects clipped
+objects; the aircraft can confirm them after they move fully into view. The
+unchanged problem scene then ran for 1,150 frames with zero detections, zero
+confirmed events, and zero frame failures.
 
 Final reproducible synthetic benchmark:
 
 ```text
 scenes / objects:       24 / 135
-precision / recall:     0.3245 / 0.4519
-matched / FP / FN:      61 / 127 / 74
-mean / p95 latency:     48.03 / 56.86 ms
-throughput:             20.82 FPS
+precision / recall:     0.3427 / 0.4519
+matched / FP / FN:      61 / 117 / 74
+mean / p95 latency:     47.88 / 58.70 ms
+throughput:             20.88 FPS
 ```
 
 This synthetic result is deployment evidence, not the final contest accuracy
