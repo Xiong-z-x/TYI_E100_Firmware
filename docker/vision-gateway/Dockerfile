@@ -12,6 +12,7 @@ COPY docker/vision-gateway/healthcheck.py /opt/uav/vision-gateway/healthcheck.py
 COPY docker/vision-gateway/prepare_model.py /opt/uav/vision-gateway/prepare_model.py
 COPY docker/vision-gateway/generate_synthetic.py /opt/uav/vision-gateway/generate_synthetic.py
 COPY docker/vision-gateway/benchmark_model.py /opt/uav/vision-gateway/benchmark_model.py
+COPY docker/vision-gateway/THIRD_PARTY_NOTICES.md /opt/uav/vision-gateway/THIRD_PARTY_NOTICES.md
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=90s --retries=3 \
     CMD ["python3", "/opt/uav/vision-gateway/healthcheck.py"]
