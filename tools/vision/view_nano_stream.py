@@ -155,7 +155,7 @@ def main() -> int:
         "--url",
         dest="camera_url",
         default="http://192.168.0.108:8090/stream.mjpg",
-        help="15 FPS raw camera MJPEG URL",
+        help="30 FPS raw camera MJPEG URL",
     )
     parser.add_argument(
         "--detections-url",
