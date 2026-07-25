@@ -11,6 +11,10 @@ sha256:9883d4b8ff116473de860e22baaa2b24471228f1107385ddfa45ccf2c0054f36
 architecture: linux/arm64
 ```
 
+The verified manifest is loaded on the Nano under the immutable local tag
+`tyi/ultralytics:jetpack5-20260724`; repository builds use that local tag and
+therefore do not depend on a future change to Docker Hub's `latest` tag.
+
 The image declares `AGPL-3.0-or-later` and links its source to
 <https://github.com/ultralytics/ultralytics>. The YOLOE checkpoint is obtained
 from the Ultralytics assets release:

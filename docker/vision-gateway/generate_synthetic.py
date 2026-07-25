@@ -33,6 +33,25 @@ def load_prompts(path: Path) -> Dict[str, Any]:
         return json.load(handle)
 
 
+def read_image(path: Path) -> np.ndarray:
+    encoded = np.fromfile(str(path), dtype=np.uint8)
+    image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    if image is None:
+        raise FileNotFoundError(path)
+    return image
+
+
+def write_jpeg(path: Path, image: np.ndarray, quality: int) -> None:
+    success, encoded = cv2.imencode(
+        ".jpg",
+        image,
+        [cv2.IMWRITE_JPEG_QUALITY, quality],
+    )
+    if not success:
+        raise RuntimeError(f"failed to encode {path.name}")
+    encoded.tofile(str(path))
+
+
 def extract_rgba(reference: np.ndarray, box: Sequence[int]) -> np.ndarray:
     x1, y1, x2, y2 = (int(value) for value in box)
     crop = reference[y1:y2, x1:x2]
@@ -98,7 +117,12 @@ def alpha_blend(scene: np.ndarray, rgba: np.ndarray, x: int, y: int) -> Box:
     active = np.argwhere(rgba[:, :, 3] > 12)
     y_min, x_min = active.min(axis=0)
     y_max, x_max = active.max(axis=0)
-    return x + x_min, y + y_min, x + x_max + 1, y + y_max + 1
+    return (
+        int(x + x_min),
+        int(y + y_min),
+        int(x + x_max + 1),
+        int(y + y_max + 1),
+    )
 
 
 def build_scene(
@@ -143,9 +167,14 @@ def build_scene(
         if transformed.shape[1] >= width or transformed.shape[0] >= height:
             continue
         placed = False
+        margin = 12
+        x_max = width - transformed.shape[1] - margin
+        y_max = height - transformed.shape[0] - margin
+        if x_max < margin or y_max < margin:
+            continue
         for _attempt in range(50):
-            x = rng.randint(0, width - transformed.shape[1])
-            y = rng.randint(0, height - transformed.shape[0])
+            x = rng.randint(margin, x_max)
+            y = rng.randint(margin, y_max)
             candidate = (
                 x,
                 y,
@@ -192,12 +221,8 @@ def main() -> int:
     parser.add_argument("--height", type=int, default=720)
     args = parser.parse_args()
 
-    reference = cv2.imread(args.reference, cv2.IMREAD_COLOR)
-    terrain = cv2.imread(args.terrain, cv2.IMREAD_COLOR)
-    if reference is None:
-        raise FileNotFoundError(args.reference)
-    if terrain is None:
-        raise FileNotFoundError(args.terrain)
+    reference = read_image(Path(args.reference))
+    terrain = read_image(Path(args.terrain))
     prompt_config = load_prompts(Path(args.prompts))
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
@@ -216,12 +241,7 @@ def main() -> int:
             object_count,
         )
         stem = f"scene_{index:03d}"
-        if not cv2.imwrite(
-            str(output / f"{stem}.jpg"),
-            scene,
-            [cv2.IMWRITE_JPEG_QUALITY, 92],
-        ):
-            raise RuntimeError(f"failed to write {stem}.jpg")
+        write_jpeg(output / f"{stem}.jpg", scene, quality=92)
         with (output / f"{stem}.json").open("w", encoding="utf-8") as handle:
             json.dump(
                 {

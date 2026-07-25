@@ -124,7 +124,7 @@ services:
       context: .
       dockerfile: docker/vision-gateway/Dockerfile
       args:
-        ULTRALYTICS_BASE: ${VISION_ULTRALYTICS_BASE:-ultralytics/ultralytics:latest-jetson-jetpack5}
+        ULTRALYTICS_BASE: ${VISION_ULTRALYTICS_BASE:-tyi/ultralytics:jetpack5-20260724}
     container_name: ${VISION_GATEWAY_CONTAINER_NAME:-vision-gateway}
     network_mode: host
     ipc: host
