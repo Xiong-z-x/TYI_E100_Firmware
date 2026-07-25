@@ -29,6 +29,10 @@ class RepositoryWiringTests(unittest.TestCase):
         self.assertEqual(len(payload["boxes"]), 15)
         self.assertEqual({item["classId"] for item in payload["boxes"]}, set(range(5)))
 
+        runtime_path = ROOT / "configs" / "vision-gateway" / "config.json"
+        runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+        self.assertEqual(runtime["inference"]["confidence"], 0.001)
+
     def test_runtime_source_does_not_reference_video_devices(self) -> None:
         source = (ROOT / "docker" / "vision-gateway" / "app.py").read_text(
             encoding="utf-8"
@@ -45,6 +49,7 @@ class RepositoryWiringTests(unittest.TestCase):
         script = (ROOT / "scripts" / "vision.sh").read_text(encoding="utf-8")
         self.assertEqual(script.count("docker run --rm --no-healthcheck"), 3)
         self.assertEqual(script.count("--entrypoint python3"), 3)
+        self.assertEqual(script.count("YOLO_CONFIG_DIR=/tmp"), 3)
         self.assertIn('state/vision-gateway/ultralytics"', script)
 
     def test_vision_build_context_is_module_scoped(self) -> None:

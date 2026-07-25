@@ -54,6 +54,7 @@ case "${command}" in
       --ipc host \
       -e NVIDIA_VISIBLE_DEVICES=all \
       -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+      -e YOLO_CONFIG_DIR=/tmp \
       -v "${MODEL_DIR}:/models" \
       -v "${PROMPTS}:/config/animal_visual_prompts.json:ro" \
       --entrypoint python3 \
@@ -115,6 +116,7 @@ PY
       --ipc host \
       -e NVIDIA_VISIBLE_DEVICES=all \
       -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+      -e YOLO_CONFIG_DIR=/tmp \
       -v "${MODEL_DIR}:/models:ro" \
       -v "${PROMPTS}:/config/animal_visual_prompts.json:ro" \
       -v "${benchmark_dir}:/benchmark" \
@@ -132,6 +134,7 @@ PY
       --ipc host \
       -e NVIDIA_VISIBLE_DEVICES=all \
       -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+      -e YOLO_CONFIG_DIR=/tmp \
       -v "${MODEL_DIR}:/models:ro" \
       -v "${benchmark_dir}:/benchmark" \
       --entrypoint python3 \

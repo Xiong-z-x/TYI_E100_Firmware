@@ -20,7 +20,7 @@
     ],
     "imageSize": 768,
     "targetFps": 10.0,
-    "confidence": 0.12,
+    "confidence": 0.001,
     "iou": 0.55,
     "maxDetections": 30
   },
