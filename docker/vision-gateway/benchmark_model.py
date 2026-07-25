@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Sequence, Tuple
 
 from ultralytics import YOLO
 
+from vision_core import box_within_frame_limits
+
 
 Box = Tuple[float, float, float, float]
 
@@ -87,6 +89,9 @@ def main() -> int:
     parser.add_argument("--conf", type=float, default=0.002)
     parser.add_argument("--iou", type=float, default=0.55)
     parser.add_argument("--match-iou", type=float, default=0.25)
+    parser.add_argument("--max-box-width-ratio", type=float, default=0.70)
+    parser.add_argument("--max-box-height-ratio", type=float, default=0.70)
+    parser.add_argument("--max-box-area-ratio", type=float, default=0.25)
     args = parser.parse_args()
 
     classes = [item.strip() for item in args.classes.split(",") if item.strip()]
@@ -126,19 +131,28 @@ def main() -> int:
         latency_ms.append((time.perf_counter() - started) * 1000.0)
         predictions: List[Dict[str, Any]] = []
         if result.boxes is not None:
+            frame_height, frame_width = result.orig_shape
             for box, class_value, confidence in zip(
                 result.boxes.xyxy.detach().cpu().tolist(),
                 result.boxes.cls.detach().cpu().tolist(),
                 result.boxes.conf.detach().cpu().tolist(),
             ):
                 class_id = int(class_value)
-                if 0 <= class_id < len(classes):
+                typed_box = tuple(float(value) for value in box)
+                if 0 <= class_id < len(classes) and box_within_frame_limits(
+                    typed_box,
+                    frame_width,
+                    frame_height,
+                    args.max_box_width_ratio,
+                    args.max_box_height_ratio,
+                    args.max_box_area_ratio,
+                ):
                     predictions.append(
                         {
                             "classId": class_id,
                             "label": classes[class_id],
                             "confidence": float(confidence),
-                            "box": [float(value) for value in box],
+                            "box": list(typed_box),
                         }
                     )
         truth = load_truth(image.with_suffix(".json"))
