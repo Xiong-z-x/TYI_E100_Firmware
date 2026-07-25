@@ -6,6 +6,7 @@ MODEL_DIR="${VISION_MODEL_DIR:-${ROOT_DIR}/models/vision}"
 IMAGE="${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:1.0.0-yoloe26s-jp5}"
 CHECKPOINT="${VISION_CHECKPOINT:-${MODEL_DIR}/yoloe-26s-seg.pt}"
 REFERENCE="${VISION_REFERENCE:-${MODEL_DIR}/nuedc-2025-h-animals.jpg}"
+TERRAIN="${VISION_TERRAIN:-${MODEL_DIR}/nuedc-2025-h-terrain.jpg}"
 ENGINE="${VISION_ENGINE:-${MODEL_DIR}/animal-yoloe.engine}"
 PROMPTS="${VISION_PROMPTS:-${ROOT_DIR}/configs/vision-gateway/animal_visual_prompts.json}"
 IMAGE_SIZE="${VISION_IMAGE_SIZE:-768}"
@@ -100,8 +101,50 @@ for path in ("healthz", "v1/detections/latest", "v1/counts"):
     print(f"[vision] {path}: {json.dumps(payload, ensure_ascii=False)}")
 PY
     ;;
+  benchmark)
+    require_file "${ENGINE}" "TensorRT engine"
+    require_file "${REFERENCE}" "NUEDC animal reference image"
+    require_file "${TERRAIN}" "NUEDC terrain image"
+    require_file "${PROMPTS}" "visual prompt config"
+    benchmark_dir="${ROOT_DIR}/state/vision-gateway/benchmark"
+    rm -rf "${benchmark_dir}/synthetic"
+    mkdir -p "${benchmark_dir}/synthetic"
+    docker run --rm \
+      --runtime nvidia \
+      --network host \
+      --ipc host \
+      -e NVIDIA_VISIBLE_DEVICES=all \
+      -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+      -v "${MODEL_DIR}:/models:ro" \
+      -v "${PROMPTS}:/config/animal_visual_prompts.json:ro" \
+      -v "${benchmark_dir}:/benchmark" \
+      --entrypoint python3 \
+      "${IMAGE}" \
+      /opt/uav/vision-gateway/generate_synthetic.py \
+      --reference "/models/$(basename "${REFERENCE}")" \
+      --terrain "/models/$(basename "${TERRAIN}")" \
+      --prompts /config/animal_visual_prompts.json \
+      --output /benchmark/synthetic \
+      --count "${VISION_BENCHMARK_SCENES:-24}"
+    docker run --rm \
+      --runtime nvidia \
+      --network host \
+      --ipc host \
+      -e NVIDIA_VISIBLE_DEVICES=all \
+      -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+      -v "${MODEL_DIR}:/models:ro" \
+      -v "${benchmark_dir}:/benchmark" \
+      --entrypoint python3 \
+      "${IMAGE}" \
+      /opt/uav/vision-gateway/benchmark_model.py \
+      --model "/models/$(basename "${ENGINE}")" \
+      --dataset /benchmark/synthetic \
+      --output /benchmark/report.json \
+      --classes elephant,tiger,wolf,monkey,peacock \
+      --imgsz "${IMAGE_SIZE}"
+    ;;
   *)
-    echo "usage: $0 {build|prepare|up|down|restart|status|logs|check}" >&2
+    echo "usage: $0 {build|prepare|up|down|restart|status|logs|check|benchmark}" >&2
     exit 2
     ;;
 esac
