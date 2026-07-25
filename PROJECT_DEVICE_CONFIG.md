@@ -642,3 +642,19 @@ compete for `/dev/video0`. Its read-only HTTP/API surface is documented in
 Docker Hub access from the board timed out. Image acquisition used an SSH
 reverse tunnel to the Windows proxy for the individual pull only. No board or
 Windows proxy, route, DNS, firewall, or shell-profile setting was persisted.
+
+Runtime validation incident and correction:
+
+- the first disposable GPU probe reused a flight image without overriding its
+  built-in entrypoint, so that temporary container attempted to launch a
+  second ROS stack;
+- it had no `/dev` mount and therefore could not open the FCU, and it exited
+  immediately after the expected bind/device failures;
+- all three production containers stayed healthy; the production
+  `/livox/lidar` rate remained about 21.3 Hz and MAVROS remained connected,
+  disarmed, and in `AUTO.LOITER`;
+- the corrected probe explicitly used `--entrypoint sh` and verified
+  `/dev/nvhost-gpu` plus `libcuda.so`;
+- every repository vision helper explicitly overrides the image entrypoint
+  with `--entrypoint python3`, preventing the same mistake during model export
+  or benchmarking.
