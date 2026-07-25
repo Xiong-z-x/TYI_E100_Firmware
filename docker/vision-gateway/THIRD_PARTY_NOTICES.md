@@ -16,13 +16,38 @@ The verified manifest is loaded on the Nano under the immutable local tag
 therefore do not depend on a future change to Docker Hub's `latest` tag.
 
 The image declares `AGPL-3.0-or-later` and links its source to
-<https://github.com/ultralytics/ultralytics>. The YOLOE checkpoint is obtained
-from the Ultralytics assets release:
-
-<https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26s-seg.pt>
+<https://github.com/ultralytics/ultralytics>. The runtime reuses this image's
+JetPack 5 CUDA, TensorRT, PyTorch and OpenCV environment; it does not load an
+Ultralytics YOLO checkpoint.
 
 Any redistribution or non-competition product use must be reviewed against the
 applicable Ultralytics software and model licensing terms.
+
+## Google SpeciesNet v4.0.3a
+
+The crop classifier, labels and reference implementation are published by
+Google's Camera Traps AI project:
+
+<https://github.com/google/cameratrapai>
+
+The repository is Apache-2.0 licensed. The exact v4.0.3a weight artifact is
+downloaded through the project's official Kaggle link. Model redistribution or
+product use must also be checked against the terms attached to that artifact:
+
+<https://www.kaggle.com/models/google/speciesnet>
+
+## MegaDetector v5a
+
+MegaDetector locates animals, people and vehicles before SpeciesNet classifies
+each animal crop. The project, documentation and model download information are:
+
+<https://github.com/agentmorris/MegaDetector>
+
+<https://microsoft.github.io/MegaDetector/>
+
+The project documents MegaDetector as free and open-source under the MIT
+License. Preserve its attribution and re-check the exact weight/model terms
+before redistribution.
 
 ## 2025 NUEDC H-problem reference images
 
