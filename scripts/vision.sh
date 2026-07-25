@@ -48,7 +48,7 @@ case "${command}" in
     require_file "${REFERENCE}" "NUEDC animal reference image"
     require_file "${PROMPTS}" "visual prompt config"
     mkdir -p "${MODEL_DIR}"
-    docker run --rm \
+    docker run --rm --no-healthcheck \
       --runtime nvidia \
       --network host \
       --ipc host \
@@ -109,7 +109,7 @@ PY
     benchmark_dir="${ROOT_DIR}/state/vision-gateway/benchmark"
     rm -rf "${benchmark_dir}/synthetic"
     mkdir -p "${benchmark_dir}/synthetic"
-    docker run --rm \
+    docker run --rm --no-healthcheck \
       --runtime nvidia \
       --network host \
       --ipc host \
@@ -126,7 +126,7 @@ PY
       --prompts /config/animal_visual_prompts.json \
       --output /benchmark/synthetic \
       --count "${VISION_BENCHMARK_SCENES:-24}"
-    docker run --rm \
+    docker run --rm --no-healthcheck \
       --runtime nvidia \
       --network host \
       --ipc host \
