@@ -11,6 +11,7 @@ ENGINE="${VISION_ENGINE:-${MODEL_DIR}/animal-yoloe.engine}"
 PROMPTS="${VISION_PROMPTS:-${ROOT_DIR}/configs/vision-gateway/animal_visual_prompts.json}"
 IMAGE_SIZE="${VISION_IMAGE_SIZE:-768}"
 PROMPT_IMAGE_SIZE="${VISION_PROMPT_IMAGE_SIZE:-1280}"
+CONFIDENCE="${VISION_CONFIDENCE:-0.001}"
 
 compose() {
   docker compose -f "${ROOT_DIR}/docker-compose.yml" --profile vision "$@"
@@ -94,9 +95,26 @@ case "${command}" in
     camera_check
     python3 - <<'PY'
 import json
+import time
+import urllib.error
 import urllib.request
 
-for path in ("healthz", "v1/detections/latest", "v1/counts"):
+deadline = time.monotonic() + 30.0
+while True:
+    try:
+        with urllib.request.urlopen(
+            "http://127.0.0.1:8765/healthz",
+            timeout=3.0,
+        ) as response:
+            health = json.load(response)
+        break
+    except (urllib.error.HTTPError, urllib.error.URLError) as error:
+        if time.monotonic() >= deadline:
+            raise
+        time.sleep(1.0)
+print(f"[vision] healthz: {json.dumps(health, ensure_ascii=False)}")
+
+for path in ("v1/detections/latest", "v1/counts"):
     with urllib.request.urlopen(f"http://127.0.0.1:8765/{path}", timeout=3.0) as response:
         payload = json.load(response)
     print(f"[vision] {path}: {json.dumps(payload, ensure_ascii=False)}")
@@ -144,7 +162,8 @@ PY
       --dataset /benchmark/synthetic \
       --output /benchmark/report.json \
       --classes elephant,tiger,wolf,monkey,peacock \
-      --imgsz "${IMAGE_SIZE}"
+      --imgsz "${IMAGE_SIZE}" \
+      --conf "${CONFIDENCE}"
     ;;
   *)
     echo "usage: $0 {build|prepare|up|down|restart|status|logs|check|benchmark}" >&2

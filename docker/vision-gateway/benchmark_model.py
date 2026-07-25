@@ -86,7 +86,7 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--classes", required=True)
     parser.add_argument("--imgsz", type=int, default=768)
-    parser.add_argument("--conf", type=float, default=0.002)
+    parser.add_argument("--conf", type=float, default=0.001)
     parser.add_argument("--iou", type=float, default=0.55)
     parser.add_argument("--match-iou", type=float, default=0.25)
     parser.add_argument("--max-box-width-ratio", type=float, default=0.70)
