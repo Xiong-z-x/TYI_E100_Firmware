@@ -78,3 +78,10 @@
   `C:\nano\autodl\speciesnet-closed-set-v2-autodl-20260725.tar.gz`，
   320,365,314 bytes，SHA-256
   `2FBD5F64072F1A2F2F4BED9052299DBF1968F766D3FA68C9E078BDC74FC33005`。
+- Windows 旧实时查看器直接播放 2 FPS 推理标注流，造成肉眼卡顿；已改为后台
+  持续读取并丢弃过期的 15 FPS 原始相机帧，同时异步轮询识别 JSON 后叠加框。
+  显示刷新率与 AI 推理频率现已解耦。
+- UVC 相机没有 `focus_auto` 或 `focus_absolute` 控件，属于固定焦距，不能通过
+  软件重新对焦。将硬件 `sharpness` 从默认 2 调到 4 后，同场景 Laplacian
+  方差从 19.30 提升到 24.47，未见明显边缘伪影；该设置已写入相机 systemd
+  启动前置命令。

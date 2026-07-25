@@ -10,6 +10,7 @@ SupplementaryGroups=video
 WorkingDirectory=/home/tfboys_nano/TYI_E100_Firmware
 Environment=PYTHONUNBUFFERED=1
 ExecStartPre=/usr/bin/test -e /dev/v4l/by-id/usb-HD_Camera_Manufacturer_USB_2.0_Camera-video-index0
+ExecStartPre=/usr/bin/v4l2-ctl --device /dev/v4l/by-id/usb-HD_Camera_Manufacturer_USB_2.0_Camera-video-index0 --set-ctrl=sharpness=4
 ExecStart=/usr/bin/python3 /home/tfboys_nano/TYI_E100_Firmware/camera/orin_camera_stream.py --device /dev/v4l/by-id/usb-HD_Camera_Manufacturer_USB_2.0_Camera-video-index0 --width 1280 --height 720 --capture-fps 60 --stream-fps 15 --max-frame-age 2.0
 Restart=always
 RestartSec=2

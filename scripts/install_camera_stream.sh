@@ -26,7 +26,7 @@ for path in "${UNIT_SOURCE}" "${CAMERA_SOURCE}" "${CAMERA_DEVICE}"; do
     exit 1
   fi
 done
-for command_name in curl fuser gst-inspect-1.0 python3 systemctl; do
+for command_name in curl fuser gst-inspect-1.0 python3 systemctl v4l2-ctl; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
     printf '[camera-install] ERROR: required command is missing: %s\n' \
       "${command_name}" >&2
