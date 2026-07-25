@@ -45,6 +45,12 @@ class RepositoryWiringTests(unittest.TestCase):
         self.assertEqual(script.count("docker run --rm"), 3)
         self.assertEqual(script.count("--entrypoint python3"), 3)
 
+    def test_vision_build_context_is_module_scoped(self) -> None:
+        compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        block = compose.split("  vision-gateway:", 1)[1]
+        self.assertIn("context: ./docker/vision-gateway", block)
+        self.assertIn("dockerfile: Dockerfile", block)
+
 
 if __name__ == "__main__":
     unittest.main()

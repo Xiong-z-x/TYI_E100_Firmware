@@ -121,8 +121,8 @@ services:
       - vision
     image: ${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:1.0.0-yoloe26s-jp5}
     build:
-      context: .
-      dockerfile: docker/vision-gateway/Dockerfile
+      context: ./docker/vision-gateway
+      dockerfile: Dockerfile
       args:
         ULTRALYTICS_BASE: ${VISION_ULTRALYTICS_BASE:-tyi/ultralytics:jetpack5-20260724}
     container_name: ${VISION_GATEWAY_CONTAINER_NAME:-vision-gateway}
