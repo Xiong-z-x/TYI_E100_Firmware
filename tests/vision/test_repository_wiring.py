@@ -15,6 +15,8 @@ class RepositoryWiringTests(unittest.TestCase):
         self.assertIn("./models/vision:/opt/uav/models:ro", block)
         self.assertNotIn("/dev:/dev", block)
         self.assertNotIn("/dev/video", block)
+        self.assertNotIn("env_file:", block)
+        self.assertNotIn("FCU_URL:", block)
 
     def test_five_contest_classes_are_configured_in_required_order(self) -> None:
         path = ROOT / "configs" / "vision-gateway" / "animal_visual_prompts.json"

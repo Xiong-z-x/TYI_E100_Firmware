@@ -133,8 +133,6 @@ services:
     mem_limit: 3500m
     pids_limit: 256
     stop_grace_period: 10s
-    env_file:
-      - .env
     environment:
       VISION_GATEWAY_HTTP_PORT: ${VISION_GATEWAY_HTTP_PORT:-8765}
       VISION_GATEWAY_CONFIG_PATH: /opt/uav/configs/vision-gateway/config.json
