@@ -1,4 +1,4 @@
-ARG ULTRALYTICS_BASE=ultralytics/ultralytics:latest-jetson-jetpack5
+ARG ULTRALYTICS_BASE=tyi/ultralytics:jetpack5-20260724
 FROM ${ULTRALYTICS_BASE}
 
 WORKDIR /opt/uav/vision-gateway

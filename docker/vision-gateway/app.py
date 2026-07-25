@@ -243,12 +243,14 @@ class SharedState:
                 "source": {
                     "ready": self.source_ready,
                     "snapshotUrl": self.settings.snapshot_url,
+                    "healthUrl": self.settings.camera_health_url,
                     "frameAgeSec": round(age, 3) if age is not None else None,
                     "error": self.source_error,
                 },
                 "performance": {
                     "inferenceMs": round(self.inference_ms, 2),
-                    "loopFps": round(self.inference_fps, 2),
+                    "processingFps": round(self.inference_fps, 2),
+                    "targetFps": self.settings.target_fps,
                     "framesOk": self.frames_ok,
                     "framesFailed": self.frames_failed,
                 },
@@ -568,6 +570,7 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
 
