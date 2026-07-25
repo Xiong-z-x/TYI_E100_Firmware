@@ -639,9 +639,19 @@ The vision container consumes only
 compete for `/dev/video0`. Its read-only HTTP/API surface is documented in
 `docs/zh_CN/动物识别模块.md`.
 
-Docker Hub access from the board timed out. Image acquisition used an SSH
-reverse tunnel to the Windows proxy for the individual pull only. No board or
-Windows proxy, route, DNS, firewall, or shell-profile setting was persisted.
+Docker Hub access from the board timed out. An SSH reverse-tunnel pull was
+tested but was too slow, so the final image was pulled on Windows with the
+single `regctl` process pointed at Clash `127.0.0.1:7897`, then transferred over
+the LAN. No board or Windows proxy, route, DNS, firewall, or shell-profile
+setting was persisted. Transfer evidence:
+
+```text
+image manifest:
+  sha256:9883d4b8ff116473de860e22baaa2b24471228f1107385ddfa45ccf2c0054f36
+transferred archive:
+  6,340,176,384 bytes
+  SHA-256 3BEB2F9A40E7C6448100769895BCC0859B76EC8D18B49F74E5D32A847FD5D7E3
+```
 
 Runtime validation incident and correction:
 
@@ -658,3 +668,59 @@ Runtime validation incident and correction:
 - every repository vision helper explicitly overrides the image entrypoint
   with `--entrypoint python3`, preventing the same mistake during model export
   or benchmarking.
+
+Final model and runtime evidence:
+
+```text
+base image local tag:  tyi/ultralytics:jetpack5-20260724
+base image ID:         sha256:9d728081eb7f2eaf5a49571e343c82a87b3e6aa8d2243ff4e76745649a3def84
+PyTorch:               2.1.0a0+41361538.nv23.06
+TensorRT:              8.5.2.2
+Ultralytics:            8.4.105
+OpenCV:                 5.0.0
+engine:                 animal-yoloe.engine, 22.0 MB, FP16, static 768
+engine SHA-256:         C324E2AFDEBF254C5616384ADC48472D5678ADA3BAFA33925A6001BB5451ABC9
+TensorRT export time:   996.1 s
+runtime memory:         about 1.54-1.55 GiB
+container hard limit:   2,500 MB (2.441 GiB)
+live inference:         about 29-33 ms/frame
+configured rate:        10 FPS
+```
+
+The first synthetic benchmark at confidence `0.12` produced zero detections.
+Threshold sweeps proved that the visual prompts were present but that the
+score distribution for the small printed targets was much lower. Confidence
+`0.001` recovered 61 of 135 synthetic targets. It also exposed persistent
+empty-scene tiger false positives whose boxes covered most of the frame.
+The final runtime therefore combines `0.001` confidence with aerial geometry
+limits: width and height no more than 70% of the frame and box area no more
+than 25%. After this correction, a 406-frame live empty-scene test produced
+zero detections and zero confirmed events.
+
+Final reproducible synthetic benchmark:
+
+```text
+scenes / objects:       24 / 135
+precision / recall:     0.3245 / 0.4519
+matched / FP / FN:      61 / 127 / 74
+mean / p95 latency:     48.03 / 56.86 ms
+throughput:             20.82 FPS
+```
+
+This synthetic result is deployment evidence, not the final contest accuracy
+claim. Elephant and monkey recall remain weak in the synthetic stress set.
+Before contest flight, print the official targets and collect a validation set
+at the actual lens, altitude, viewing angle, and lighting. Use that evidence
+for the final threshold or for fine-tuning a smaller closed-set YOLO detector.
+
+Final non-mutating flight-chain regression while vision was running:
+
+```text
+MAVROS:                 connected=True, armed=False, mode=AUTO.LOITER
+Livox point cloud:      about 20 Hz
+FAST-LIO2 odometry:     about 20.9 Hz
+MAVROS odometry input:  about 28.6-30.9 Hz
+containers:             flight-core, control-gateway, pointcloud-gateway,
+                        vision-gateway all healthy
+camera ownership:       only orin-camera-stream.service owns /dev/video0
+```
