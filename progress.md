@@ -40,3 +40,16 @@
 - SpeciesNet 对象、虎分类可靠；狼、猴、孔雀仍未全部达到目标类别 0.8 阈值。
 - 按当前决策停止在预训练基线阶段：没有构造数据集、没有微调、没有替换 Nano
   上正在运行的 YOLOE/TensorRT 服务，也没有修改飞行链路。
+- 后续决策改为替换 YOLOE：完成 MegaDetector v5a + SpeciesNet v4.0.3a 的
+  双 TensorRT 运行时、五类分类学概率聚合、拒识证据输出和 Windows 实时查看器。
+- 导出并校验静态 ONNX：MegaDetector `1x3x1280x1280`，SpeciesNet
+  `1x480x480x3`；两个文件均通过 `onnx.checker`。
+- 官方整图基线达到 15/15 检测、15/15 闭集分类正确且全部通过 0.8 门槛。
+- 构造 `nuedc-2025-h-closed-set-v2`：train 1800、val 360、test 600；
+  训练姿态和地貌区域与保留集合隔离，并加入 unknown 负类。
+- 预训练模型在 600 张 v2 test 上达到 59.0%，unknown 100% 拒识；结果记录在
+  `C:\nano\state\vision-baselines\speciesnet-closed-set\synthetic-test-v2-report.json`。
+- 生成 AutoDL 输入 CSV、MegaDetector 结果文件、两阶段训练命令和官方
+  `speciesnet_timm.pt`；官方 split 算法复核为严格 1800/360，test 不入训练。
+- Windows 静态编译和视觉测试通过：`19 passed`。飞行容器、相机服务和飞控接口
+  未被视觉代码修改。

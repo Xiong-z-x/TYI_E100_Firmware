@@ -8,10 +8,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY app.py /opt/uav/vision-gateway/app.py
 COPY vision_core.py /opt/uav/vision-gateway/vision_core.py
+COPY speciesnet_closed_set.py /opt/uav/vision-gateway/speciesnet_closed_set.py
+COPY speciesnet_trt.py /opt/uav/vision-gateway/speciesnet_trt.py
 COPY healthcheck.py /opt/uav/vision-gateway/healthcheck.py
-COPY prepare_model.py /opt/uav/vision-gateway/prepare_model.py
 COPY generate_synthetic.py /opt/uav/vision-gateway/generate_synthetic.py
-COPY benchmark_model.py /opt/uav/vision-gateway/benchmark_model.py
+COPY benchmark_speciesnet.py /opt/uav/vision-gateway/benchmark_speciesnet.py
 COPY THIRD_PARTY_NOTICES.md /opt/uav/vision-gateway/THIRD_PARTY_NOTICES.md
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=90s --retries=3 \

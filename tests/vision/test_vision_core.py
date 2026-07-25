@@ -86,6 +86,25 @@ class TrackerTests(unittest.TestCase):
         second = tracker.update([self.detection(10)], 4.0)
         self.assertNotEqual(first.tracks[0].track_id, second.tracks[0].track_id)
 
+    def test_speciesnet_evidence_is_exposed(self) -> None:
+        detection = Detection(
+            class_id=2,
+            label="wolf",
+            confidence=0.97,
+            box=(1.0, 2.0, 3.0, 4.0),
+            detector_confidence=0.91,
+            native_label="grey wolf",
+            native_confidence=0.77,
+            native_group_mass=0.93,
+            margin=0.88,
+        )
+
+        payload = detection.as_dict()
+
+        self.assertEqual(payload["detectorConfidence"], 0.91)
+        self.assertEqual(payload["nativeLabel"], "grey wolf")
+        self.assertEqual(payload["nativeGroupMass"], 0.93)
+
 
 class ConfigTests(unittest.TestCase):
     def test_parse_classes(self) -> None:

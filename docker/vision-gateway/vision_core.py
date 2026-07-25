@@ -73,6 +73,11 @@ class Detection:
     confidence: float
     box: Box
     mask_area_px: Optional[float] = None
+    detector_confidence: Optional[float] = None
+    native_label: Optional[str] = None
+    native_confidence: Optional[float] = None
+    native_group_mass: Optional[float] = None
+    margin: Optional[float] = None
 
     def as_dict(
         self,
@@ -97,6 +102,16 @@ class Detection:
         }
         if self.mask_area_px is not None:
             payload["maskAreaPx"] = round(self.mask_area_px, 1)
+        if self.detector_confidence is not None:
+            payload["detectorConfidence"] = round(self.detector_confidence, 4)
+        if self.native_label is not None:
+            payload["nativeLabel"] = self.native_label
+        if self.native_confidence is not None:
+            payload["nativeConfidence"] = round(self.native_confidence, 4)
+        if self.native_group_mass is not None:
+            payload["nativeGroupMass"] = round(self.native_group_mass, 4)
+        if self.margin is not None:
+            payload["closedSetMargin"] = round(self.margin, 4)
         return payload
 
 
