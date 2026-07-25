@@ -23,3 +23,20 @@
 - 三个飞行容器保持 healthy，MAVROS connected、未解锁、在地面。
 - LiDAR 20.287 Hz、FAST-LIO 20.296 Hz、vision pose 235.180 Hz。
 - 蓝牙服务和 Intel `8087:0029` 设备仍在，未做任何修改。
+
+## 2026-07-25
+
+- 验证 Windows `C:\nano` 下旧镜像拉取缓存和失败下载残留均已不存在；未清理
+  模型资产和项目数据。
+- 建立隔离的 YOLO11 与 SpeciesNet 评测环境，未覆盖系统 Python。
+- 完成 Ultralytics 官方 `yolo11s-seg.pt` 基线：15 个目标中仅 3 个以不低于
+  0.8 的置信度输出赛题同名类别，均为象；证明 COCO 标签空间不足。
+- 修复首次下载被截断的 MegaDetector 权重；完整权重 280,767,041 bytes，
+  SHA-256 为
+  `FE3E90E4B1955821AB7C1F88B446DC0C8CB25E109FDD1872916A55305294A5EF`。
+- 完成 Google SpeciesNet v4.0.3a + MegaDetector v5a 基线：官方整图 15/15
+  目标全部检出，IoU 0.5 下 precision/recall 均为 1.0，最低检测置信度
+  0.8884。
+- SpeciesNet 对象、虎分类可靠；狼、猴、孔雀仍未全部达到目标类别 0.8 阈值。
+- 按当前决策停止在预训练基线阶段：没有构造数据集、没有微调、没有替换 Nano
+  上正在运行的 YOLOE/TensorRT 服务，也没有修改飞行链路。
