@@ -20,9 +20,12 @@
     ],
     "imageSize": 768,
     "targetFps": 10.0,
-    "confidence": 0.002,
+    "confidence": 0.001,
     "iou": 0.55,
-    "maxDetections": 30
+    "maxDetections": 30,
+    "maxBoxWidthRatio": 0.70,
+    "maxBoxHeightRatio": 0.70,
+    "maxBoxAreaRatio": 0.25
   },
   "tracking": {
     "confirmHits": 3,

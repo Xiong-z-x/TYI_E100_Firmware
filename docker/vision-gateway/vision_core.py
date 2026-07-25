@@ -37,6 +37,28 @@ def center_distance_ratio(left: Box, right: Box) -> float:
     return distance / scale
 
 
+def box_within_frame_limits(
+    box: Box,
+    frame_width: int,
+    frame_height: int,
+    max_width_ratio: float,
+    max_height_ratio: float,
+    max_area_ratio: float,
+) -> bool:
+    if frame_width <= 0 or frame_height <= 0:
+        return False
+    width = max(0.0, box[2] - box[0])
+    height = max(0.0, box[3] - box[1])
+    if width <= 0.0 or height <= 0.0:
+        return False
+    frame_area = float(frame_width * frame_height)
+    return (
+        width / frame_width <= max_width_ratio
+        and height / frame_height <= max_height_ratio
+        and width * height / frame_area <= max_area_ratio
+    )
+
+
 @dataclass(frozen=True)
 class Detection:
     class_id: int

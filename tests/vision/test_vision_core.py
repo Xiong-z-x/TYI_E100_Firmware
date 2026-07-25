@@ -14,6 +14,7 @@ SPEC.loader.exec_module(MODULE)
 AnimalTracker = MODULE.AnimalTracker
 Detection = MODULE.Detection
 box_iou = MODULE.box_iou
+box_within_frame_limits = MODULE.box_within_frame_limits
 parse_classes = MODULE.parse_classes
 
 
@@ -21,6 +22,28 @@ class BoxTests(unittest.TestCase):
     def test_iou(self) -> None:
         self.assertAlmostEqual(box_iou((0, 0, 10, 10), (5, 5, 15, 15)), 25 / 175)
         self.assertEqual(box_iou((0, 0, 1, 1), (2, 2, 3, 3)), 0.0)
+
+    def test_aerial_box_limits_reject_background_spans(self) -> None:
+        self.assertTrue(
+            box_within_frame_limits(
+                (100.0, 100.0, 250.0, 250.0),
+                1280,
+                720,
+                0.70,
+                0.70,
+                0.25,
+            )
+        )
+        self.assertFalse(
+            box_within_frame_limits(
+                (2.0, 290.0, 1102.0, 718.0),
+                1280,
+                720,
+                0.70,
+                0.70,
+                0.25,
+            )
+        )
 
 
 class TrackerTests(unittest.TestCase):

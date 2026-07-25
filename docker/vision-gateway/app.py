@@ -21,7 +21,14 @@ from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional, Sequence, Tuple
 from urllib.parse import parse_qs, urlsplit
 
-from vision_core import AnimalTracker, Detection, Track, TrackEvent, parse_classes
+from vision_core import (
+    AnimalTracker,
+    Detection,
+    Track,
+    TrackEvent,
+    box_within_frame_limits,
+    parse_classes,
+)
 
 
 def utc_now() -> str:
@@ -66,6 +73,9 @@ class Settings:
     confidence: float
     iou: float
     max_detections: int
+    max_box_width_ratio: float
+    max_box_height_ratio: float
+    max_box_area_ratio: float
     confirm_hits: int
     max_missed: int
     event_log_path: str
@@ -119,6 +129,18 @@ class Settings:
             iou=env_float("VISION_IOU", float(inference.get("iou", 0.55))),
             max_detections=env_int(
                 "VISION_MAX_DETECTIONS", int(inference.get("maxDetections", 30))
+            ),
+            max_box_width_ratio=env_float(
+                "VISION_MAX_BOX_WIDTH_RATIO",
+                float(inference.get("maxBoxWidthRatio", 0.70)),
+            ),
+            max_box_height_ratio=env_float(
+                "VISION_MAX_BOX_HEIGHT_RATIO",
+                float(inference.get("maxBoxHeightRatio", 0.70)),
+            ),
+            max_box_area_ratio=env_float(
+                "VISION_MAX_BOX_AREA_RATIO",
+                float(inference.get("maxBoxAreaRatio", 0.25)),
             ),
             confirm_hits=env_int(
                 "VISION_CONFIRM_HITS", int(tracking.get("confirmHits", 3))
@@ -238,6 +260,11 @@ class SharedState:
                     "backend": self.model_backend,
                     "classes": list(self.settings.model_classes),
                     "imageSize": self.settings.image_size,
+                    "boxLimits": {
+                        "maxWidthRatio": self.settings.max_box_width_ratio,
+                        "maxHeightRatio": self.settings.max_box_height_ratio,
+                        "maxAreaRatio": self.settings.max_box_area_ratio,
+                    },
                     "error": self.model_error,
                 },
                 "source": {
@@ -329,6 +356,7 @@ class ModelRunner:
                 for mask in result.masks.data
             ]
         if boxes is not None:
+            frame_height, frame_width = frame.shape[:2]
             xyxy = boxes.xyxy.detach().cpu().tolist()
             classes = boxes.cls.detach().cpu().tolist()
             confidences = boxes.conf.detach().cpu().tolist()
@@ -338,12 +366,22 @@ class ModelRunner:
                 class_id = int(class_value)
                 if class_id < 0 or class_id >= len(self.settings.model_classes):
                     continue
+                typed_box = tuple(float(value) for value in box)
+                if not box_within_frame_limits(
+                    typed_box,
+                    frame_width,
+                    frame_height,
+                    self.settings.max_box_width_ratio,
+                    self.settings.max_box_height_ratio,
+                    self.settings.max_box_area_ratio,
+                ):
+                    continue
                 detections.append(
                     Detection(
                         class_id=class_id,
                         label=self.settings.model_classes[class_id],
                         confidence=float(confidence),
-                        box=tuple(float(value) for value in box),
+                        box=typed_box,
                         mask_area_px=mask_areas[index] if index < len(mask_areas) else None,
                     )
                 )
