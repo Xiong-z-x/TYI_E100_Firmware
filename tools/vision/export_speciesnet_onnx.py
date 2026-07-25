@@ -98,6 +98,28 @@ def export_classifier(
     )
 
 
+def fold_classifier_constants(output_path: Path) -> None:
+    """Materialize FX constant aliases required by JetPack 5 TensorRT 8.5."""
+
+    try:
+        import onnx
+        from polygraphy.backend.onnx.loader import fold_constants
+    except ImportError as error:
+        raise RuntimeError(
+            "classifier export requires onnx, onnxruntime, polygraphy and "
+            "onnx-graphsurgeon for TensorRT 8.5 constant folding"
+        ) from error
+    model = onnx.load(str(output_path))
+    model = fold_constants(
+        model,
+        do_shape_inference=False,
+        error_ok=False,
+        allow_onnxruntime_shape_inference=False,
+    )
+    onnx.checker.check_model(model)
+    onnx.save(model, str(output_path))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-dir", required=True)
@@ -106,6 +128,11 @@ def main() -> int:
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--skip-detector", action="store_true")
     parser.add_argument("--skip-classifier", action="store_true")
+    parser.add_argument(
+        "--skip-classifier-constant-folding",
+        action="store_true",
+        help="Keep the raw FX ONNX; it will not parse on TensorRT 8.5.",
+    )
     args = parser.parse_args()
 
     model_dir = Path(args.model_dir).resolve()
@@ -122,6 +149,8 @@ def main() -> int:
         export_detector(detector_checkpoint, detector_onnx, device, args.opset)
     if not args.skip_classifier:
         export_classifier(classifier_checkpoint, classifier_onnx, device, args.opset)
+        if not args.skip_classifier_constant_folding:
+            fold_classifier_constants(classifier_onnx)
 
     manifest = {
         "sourceModelVersion": info["version"],
@@ -141,6 +170,9 @@ def main() -> int:
                 sha256(classifier_onnx) if classifier_onnx.is_file() else None
             ),
             "input": [1, 480, 480, 3],
+            "constantsFoldedForTensorRT85": (
+                not args.skip_classifier_constant_folding
+            ),
         },
         "classifierLabels": str(info["classifier_labels"]),
     }

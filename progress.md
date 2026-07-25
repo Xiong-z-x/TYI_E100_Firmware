@@ -53,3 +53,9 @@
   `speciesnet_timm.pt`；官方 split 算法复核为严格 1800/360，test 不入训练。
 - Windows 静态编译和视觉测试通过：`19 passed`。飞行容器、相机服务和飞控接口
   未被视觉代码修改。
+- Nano `develop` 的 49 个本地提交已先完整并入远端，再快进到
+  `de6782c`；队友未跟踪的 `orin_telemetry_bridge.py` 保持原样。
+- MegaDetector 1280 FP16 TensorRT 引擎构建成功，大小约 271 MiB，SHA-256
+  `A342A4DDE7D0BC6A14D1D2DE51F693A8877F72C7FA64088C57FBD1DD607FFD57`。
+- SpeciesNet 原始 ONNX 首次构建因 TensorRT 8.5 的 Squeeze axes 常量限制失败；
+  已将常量折叠步骤写入导出工具，折叠前后 ONNX Runtime 输出逐元素一致。

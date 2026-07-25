@@ -89,3 +89,10 @@
 - AutoDL 包固定使用官方 `agentmorris/speciesnet-fine-tuning` 提交
   `70e96884ce9981caca1ddc40bcebe59b0d011946`，并内置官方转换后的
   `speciesnet_timm.pt`，避免训练服务器再次联网下载。
+- 原始 FX 分类器 ONNX 能通过 `onnx.checker`，但 JetPack 5 的 TensorRT
+  8.5.2 解析 `Squeeze` 时拒绝由 `Identity` 转发的 axes 常量，报错
+  `Squeeze axes input must be an initializer`。这不是权重、显存或分类逻辑问题。
+- 按 TensorRT 官方错误提示使用 Polygraphy 折叠常量：节点从 1067 降到 866，
+  初始化器从 506 变为 637；原始/折叠 ONNX 的随机输入输出最大绝对差为 `0.0`。
+  折叠文件 SHA-256 为
+  `71E77ABD7D5D87088C74AF222EAAB52A17696ACD36F52C18FAABD3F438B45751`。
