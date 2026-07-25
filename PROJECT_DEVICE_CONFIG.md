@@ -588,3 +588,57 @@ wlan0 MAC: 70:a6:cc:0d:8f:5e
 
 Because the WLAN address is DHCP-assigned, verify this MAC before updating the
 RK3588 endpoint after any IP change.
+
+## Animal vision deployment baseline on 2026-07-25
+
+The live compute platform was re-verified before adding inference:
+
+```text
+module:           NVIDIA Orin Nano Developer Kit
+memory:           8 GB class (7451 MiB usable)
+storage:          467 GB NVMe, 428+ GB free
+L4T:              R35.6.4
+JetPack meta:     5.1.6 repository
+power mode:       mode 0, 15 W
+idle GPU/CPU:     GPU about 54 C, CPU about 57 C
+```
+
+The board initially had the L4T CUDA driver but no NVIDIA Container Runtime or
+TensorRT user-space stack. The following repository-compatible packages were
+installed from the NVIDIA R35.6 apt source:
+
+```text
+libnvidia-container0
+libnvidia-container1
+libnvidia-container-tools
+nvidia-container-toolkit
+nvidia-container-runtime
+```
+
+`nvidia-ctk runtime configure --runtime=docker` created a minimal
+`/etc/docker/daemon.json` containing only the `nvidia` runtime. Docker reloaded
+the file with SIGHUP; `flight-core`, `control-gateway`, and
+`pointcloud-gateway` remained running and healthy.
+
+The selected detector is `YOLOE-26s-seg` with visual prompts baked from the
+official 2025 NUEDC H-problem animal posture sheet. Plain COCO weights are not
+acceptable because they do not provide all five required labels. Reference
+artifacts:
+
+```text
+official posture image:
+  SHA-256 AEA0BBB5EF4ABB52D02C5BC604EA80F3B5449EF2D6E7F96CC3649263D65FFAD6
+YOLOE-26s checkpoint:
+  SHA-256 48F24206BC8680D60CBBFA296B0140DA849669B9515058B72F5A945142DF0654
+classes:
+  elephant, tiger, wolf, monkey, peacock
+```
+
+The vision container consumes only
+`http://127.0.0.1:8090/snapshot.jpg`, has no `/dev` mount, and therefore cannot
+compete for `/dev/video0`. Its read-only HTTP/API surface is documented in
+`docs/zh_CN/动物识别模块.md`.
+
+Docker Hub access from the board timed out. Image acquisition used an SSH
+reverse tunnel to the Windows proxy for the individual pull only. No board or
+Windows proxy, route, DNS, firewall, or shell-profile setting was persisted.

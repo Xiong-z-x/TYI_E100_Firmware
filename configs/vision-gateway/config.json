@@ -1,0 +1,36 @@
+{
+  "service": {
+    "listenHost": "0.0.0.0",
+    "port": 8765,
+    "maxFrameAgeSec": 2.5
+  },
+  "source": {
+    "snapshotUrl": "http://127.0.0.1:8090/snapshot.jpg",
+    "healthUrl": "http://127.0.0.1:8090/healthz",
+    "timeoutSec": 1.5
+  },
+  "inference": {
+    "modelPath": "/opt/uav/models/animal-yoloe.engine",
+    "classes": [
+      "elephant",
+      "tiger",
+      "wolf",
+      "monkey",
+      "peacock"
+    ],
+    "imageSize": 768,
+    "targetFps": 10.0,
+    "confidence": 0.12,
+    "iou": 0.55,
+    "maxDetections": 30
+  },
+  "tracking": {
+    "confirmHits": 3,
+    "maxMissed": 8
+  },
+  "output": {
+    "streamFps": 5.0,
+    "jpegQuality": 82,
+    "eventLogPath": "/opt/tyi/logs/vision-gateway/events.jsonl"
+  }
+}
