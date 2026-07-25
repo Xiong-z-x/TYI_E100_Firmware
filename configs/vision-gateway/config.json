@@ -10,7 +10,12 @@
     "timeoutSec": 1.5
   },
   "inference": {
-    "modelPath": "/opt/uav/models/animal-yoloe.engine",
+    "backend": "speciesnet-tensorrt",
+    "detectorEnginePath": "/opt/uav/models/megadetector-v5a-1280-fp16.engine",
+    "classifierEnginePath": "/opt/uav/models/speciesnet-v4.0.3a-480-fp16.engine",
+    "classifierLabelsPath": "/opt/uav/models/speciesnet-v4.0.3a-labels.txt",
+    "detectorInputSize": 1280,
+    "classifierInputSize": 480,
     "classes": [
       "elephant",
       "tiger",
@@ -18,19 +23,21 @@
       "monkey",
       "peacock"
     ],
-    "imageSize": 768,
-    "targetFps": 10.0,
-    "confidence": 0.001,
-    "iou": 0.55,
-    "maxDetections": 30,
+    "targetFps": 2.0,
+    "detectorConfidence": 0.20,
+    "closedSetConfidence": 0.80,
+    "minimumNativeGroupMass": 0.45,
+    "minimumMargin": 0.30,
+    "iou": 0.45,
+    "maxDetections": 20,
     "maxBoxWidthRatio": 0.70,
     "maxBoxHeightRatio": 0.70,
     "maxBoxAreaRatio": 0.25,
     "minBorderMarginRatio": 0.005
   },
   "tracking": {
-    "confirmHits": 3,
-    "maxMissed": 8
+    "confirmHits": 2,
+    "maxMissed": 5
   },
   "output": {
     "streamFps": 5.0,
