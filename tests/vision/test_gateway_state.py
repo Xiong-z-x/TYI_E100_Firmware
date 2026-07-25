@@ -40,7 +40,7 @@ class SharedStateTests(unittest.TestCase):
         )
         status, payload = state.health()
         self.assertEqual(status, HTTPStatus.OK)
-        self.assertEqual(payload["model"]["backend"], "engine")
+        self.assertEqual(payload["model"]["backend"], "speciesnet-tensorrt")
         self.assertEqual(payload["performance"]["framesOk"], 1)
 
     def test_confirmed_event_updates_session_count(self) -> None:

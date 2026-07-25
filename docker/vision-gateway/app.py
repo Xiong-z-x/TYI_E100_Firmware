@@ -67,10 +67,17 @@ class Settings:
     source_timeout_sec: float
     target_fps: float
     annotated_stream_fps: float
-    model_path: str
+    backend: str
+    detector_engine_path: str
+    classifier_engine_path: str
+    classifier_labels_path: str
     model_classes: List[str]
-    image_size: int
+    detector_size: int
+    classifier_size: int
     confidence: float
+    detector_confidence: float
+    native_group_mass: float
+    minimum_margin: float
     iou: float
     max_detections: int
     max_box_width_ratio: float
@@ -108,9 +115,36 @@ class Settings:
             annotated_stream_fps=env_float(
                 "VISION_ANNOTATED_STREAM_FPS", float(output.get("streamFps", 5.0))
             ),
-            model_path=env_text(
-                "VISION_MODEL_PATH",
-                str(inference.get("modelPath", "/opt/uav/models/animal-yoloe.engine")),
+            backend=env_text(
+                "VISION_MODEL_BACKEND",
+                str(inference.get("backend", "speciesnet-tensorrt")),
+            ),
+            detector_engine_path=env_text(
+                "VISION_DETECTOR_ENGINE_PATH",
+                str(
+                    inference.get(
+                        "detectorEnginePath",
+                        "/opt/uav/models/megadetector-v5a-1280-fp16.engine",
+                    )
+                ),
+            ),
+            classifier_engine_path=env_text(
+                "VISION_CLASSIFIER_ENGINE_PATH",
+                str(
+                    inference.get(
+                        "classifierEnginePath",
+                        "/opt/uav/models/speciesnet-v4.0.3a-480-fp16.engine",
+                    )
+                ),
+            ),
+            classifier_labels_path=env_text(
+                "VISION_CLASSIFIER_LABELS_PATH",
+                str(
+                    inference.get(
+                        "classifierLabelsPath",
+                        "/opt/uav/models/speciesnet-v4.0.3a-labels.txt",
+                    )
+                ),
             ),
             model_classes=parse_classes(
                 env_text(
@@ -123,9 +157,28 @@ class Settings:
                     ),
                 )
             ),
-            image_size=env_int("VISION_IMAGE_SIZE", int(inference.get("imageSize", 768))),
+            detector_size=env_int(
+                "VISION_DETECTOR_IMAGE_SIZE",
+                int(inference.get("detectorInputSize", 1280)),
+            ),
+            classifier_size=env_int(
+                "VISION_CLASSIFIER_IMAGE_SIZE",
+                int(inference.get("classifierInputSize", 480)),
+            ),
             confidence=env_float(
-                "VISION_CONFIDENCE", float(inference.get("confidence", 0.12))
+                "VISION_CONFIDENCE", float(inference.get("closedSetConfidence", 0.80))
+            ),
+            detector_confidence=env_float(
+                "VISION_DETECTOR_CONFIDENCE",
+                float(inference.get("detectorConfidence", 0.20)),
+            ),
+            native_group_mass=env_float(
+                "VISION_MINIMUM_NATIVE_GROUP_MASS",
+                float(inference.get("minimumNativeGroupMass", 0.45)),
+            ),
+            minimum_margin=env_float(
+                "VISION_MINIMUM_MARGIN",
+                float(inference.get("minimumMargin", 0.30)),
             ),
             iou=env_float("VISION_IOU", float(inference.get("iou", 0.55))),
             max_detections=env_int(
@@ -185,8 +238,8 @@ class SharedState:
         self.model_error: Optional[str] = None
         self.source_ready = False
         self.source_error: Optional[str] = None
-        self.model_backend = Path(settings.model_path).suffix.lstrip(".").lower() or "unknown"
-        self.model_name = Path(settings.model_path).name
+        self.model_backend = settings.backend
+        self.model_name = "SpeciesNet-v4.0.3a+MegaDetector-v5a"
         self.sequence = 0
         self.last_frame_monotonic: Optional[float] = None
         self.latest_payload: Dict[str, Any] = {}
@@ -257,14 +310,17 @@ class SharedState:
             payload = {
                 "status": "ok" if healthy else "unavailable",
                 "service": "animal-vision-gateway",
-                "version": "1.0.0",
+                "version": "2.0.0",
                 "uptimeSec": round(time.monotonic() - self.started_monotonic, 1),
                 "model": {
                     "ready": self.model_ready,
                     "name": self.model_name,
                     "backend": self.model_backend,
                     "classes": list(self.settings.model_classes),
-                    "imageSize": self.settings.image_size,
+                    "inputSizes": {
+                        "detector": self.settings.detector_size,
+                        "classifier": self.settings.classifier_size,
+                    },
                     "boxLimits": {
                         "maxWidthRatio": self.settings.max_box_width_ratio,
                         "maxHeightRatio": self.settings.max_box_height_ratio,
@@ -320,14 +376,34 @@ class ModelRunner:
     def __init__(self, settings: Settings) -> None:
         import cv2
         import numpy as np
-        from ultralytics import YOLO
+        from speciesnet_trt import SpeciesNetTensorRTRunner
 
         self.cv2 = cv2
         self.np = np
         self.settings = settings
-        if not Path(settings.model_path).is_file():
-            raise FileNotFoundError(f"model not found: {settings.model_path}")
-        self.model = YOLO(settings.model_path, task="segment")
+        if settings.backend != "speciesnet-tensorrt":
+            raise ValueError(f"unsupported vision backend: {settings.backend}")
+        if settings.detector_size != SpeciesNetTensorRTRunner.DETECTOR_SIZE:
+            raise ValueError(
+                "detectorInputSize must match the static TensorRT engine: "
+                f"{SpeciesNetTensorRTRunner.DETECTOR_SIZE}"
+            )
+        if settings.classifier_size != SpeciesNetTensorRTRunner.CLASSIFIER_SIZE:
+            raise ValueError(
+                "classifierInputSize must match the static TensorRT engine: "
+                f"{SpeciesNetTensorRTRunner.CLASSIFIER_SIZE}"
+            )
+        self.model = SpeciesNetTensorRTRunner(
+            detector_engine=settings.detector_engine_path,
+            classifier_engine=settings.classifier_engine_path,
+            labels_path=settings.classifier_labels_path,
+            detector_confidence=settings.detector_confidence,
+            detector_iou=settings.iou,
+            max_detections=settings.max_detections,
+            closed_set_confidence=settings.confidence,
+            native_group_mass=settings.native_group_mass,
+            minimum_margin=settings.minimum_margin,
+        )
         self.tracker = AnimalTracker(
             confirm_hits=settings.confirm_hits,
             max_missed=settings.max_missed,
@@ -342,58 +418,49 @@ class ModelRunner:
 
     def infer(self, frame: Any, now: float) -> Tuple[List[Track], List[TrackEvent], Any, float]:
         started = time.perf_counter()
-        results = self.model.predict(
-            source=frame,
-            imgsz=self.settings.image_size,
-            conf=self.settings.confidence,
-            iou=self.settings.iou,
-            max_det=self.settings.max_detections,
-            device=0,
-            verbose=False,
-        )
+        accepted, rejected = self.model.infer(frame)
         inference_ms = (time.perf_counter() - started) * 1000.0
-        result = results[0]
         detections: List[Detection] = []
-        boxes = result.boxes
-        mask_areas: List[Optional[float]] = []
-        if result.masks is not None:
-            mask_areas = [
-                float(mask.sum().item())
-                for mask in result.masks.data
-            ]
-        if boxes is not None:
-            frame_height, frame_width = frame.shape[:2]
-            xyxy = boxes.xyxy.detach().cpu().tolist()
-            classes = boxes.cls.detach().cpu().tolist()
-            confidences = boxes.conf.detach().cpu().tolist()
-            for index, (box, class_value, confidence) in enumerate(
-                zip(xyxy, classes, confidences)
+        frame_height, frame_width = frame.shape[:2]
+        for result in accepted:
+            if not box_within_frame_limits(
+                result.box,
+                frame_width,
+                frame_height,
+                self.settings.max_box_width_ratio,
+                self.settings.max_box_height_ratio,
+                self.settings.max_box_area_ratio,
+                self.settings.min_border_margin_ratio,
             ):
-                class_id = int(class_value)
-                if class_id < 0 or class_id >= len(self.settings.model_classes):
-                    continue
-                typed_box = tuple(float(value) for value in box)
-                if not box_within_frame_limits(
-                    typed_box,
-                    frame_width,
-                    frame_height,
-                    self.settings.max_box_width_ratio,
-                    self.settings.max_box_height_ratio,
-                    self.settings.max_box_area_ratio,
-                    self.settings.min_border_margin_ratio,
-                ):
-                    continue
-                detections.append(
-                    Detection(
-                        class_id=class_id,
-                        label=self.settings.model_classes[class_id],
-                        confidence=float(confidence),
-                        box=typed_box,
-                        mask_area_px=mask_areas[index] if index < len(mask_areas) else None,
-                    )
+                continue
+            detections.append(
+                Detection(
+                    class_id=result.class_id,
+                    label=result.label,
+                    confidence=result.confidence,
+                    box=result.box,
+                    detector_confidence=result.detector_confidence,
+                    native_label=result.native_label,
+                    native_confidence=result.native_confidence,
+                    native_group_mass=result.native_group_mass,
+                    margin=result.margin,
                 )
+            )
+        annotated = frame.copy()
+        for result in rejected:
+            x1, y1, x2, y2 = (int(round(value)) for value in result.box)
+            self.cv2.rectangle(annotated, (x1, y1), (x2, y2), (130, 130, 130), 1)
+            self.cv2.putText(
+                annotated,
+                f"unknown mass={result.native_group_mass:.2f}",
+                (x1, max(20, y1 - 8)),
+                self.cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                (130, 130, 130),
+                1,
+                self.cv2.LINE_AA,
+            )
         update = self.tracker.update(detections, now)
-        annotated = result.plot(labels=False, conf=False)
         for track in update.tracks:
             x1, y1, x2, y2 = (int(round(value)) for value in track.detection.box)
             color = (40, 210, 60) if track.confirmed else (0, 190, 255)
@@ -463,8 +530,9 @@ class InferenceWorker(threading.Thread):
             runner = ModelRunner(self.settings)
             self.state.note_model_ready()
             logging.info(
-                "model ready: %s classes=%s",
-                self.settings.model_path,
+                "model ready: detector=%s classifier=%s classes=%s",
+                self.settings.detector_engine_path,
+                self.settings.classifier_engine_path,
                 ",".join(self.settings.model_classes),
             )
         except Exception as error:
@@ -531,7 +599,7 @@ class InferenceWorker(threading.Thread):
 
 
 class VisionRequestHandler(BaseHTTPRequestHandler):
-    server_version = "TYIAnimalVision/1.0"
+    server_version = "TYIAnimalVision/2.0"
 
     @property
     def state(self) -> SharedState:

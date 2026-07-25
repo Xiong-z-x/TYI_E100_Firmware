@@ -11,7 +11,7 @@ class RepositoryWiringTests(unittest.TestCase):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         block = compose.split("  vision-gateway:", 1)[1]
         self.assertIn("runtime: nvidia", block)
-        self.assertIn("mem_limit: 2500m", block)
+        self.assertIn("mem_limit: 2800m", block)
         self.assertIn("http://127.0.0.1:8090/snapshot.jpg", block)
         self.assertIn("./models/vision:/opt/uav/models:ro", block)
         self.assertNotIn("/dev:/dev", block)
@@ -31,7 +31,9 @@ class RepositoryWiringTests(unittest.TestCase):
 
         runtime_path = ROOT / "configs" / "vision-gateway" / "config.json"
         runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
-        self.assertEqual(runtime["inference"]["confidence"], 0.001)
+        self.assertEqual(runtime["inference"]["backend"], "speciesnet-tensorrt")
+        self.assertEqual(runtime["inference"]["closedSetConfidence"], 0.80)
+        self.assertEqual(runtime["inference"]["minimumNativeGroupMass"], 0.45)
         self.assertEqual(runtime["inference"]["maxBoxAreaRatio"], 0.25)
         self.assertEqual(runtime["inference"]["minBorderMarginRatio"], 0.005)
 
@@ -50,10 +52,11 @@ class RepositoryWiringTests(unittest.TestCase):
     def test_disposable_gpu_jobs_override_the_base_image_entrypoint(self) -> None:
         script = (ROOT / "scripts" / "vision.sh").read_text(encoding="utf-8")
         self.assertEqual(script.count("docker run --rm --no-healthcheck"), 3)
-        self.assertEqual(script.count("--entrypoint python3"), 3)
-        self.assertEqual(script.count("YOLO_CONFIG_DIR=/tmp"), 3)
-        self.assertIn('state/vision-gateway/ultralytics"', script)
-        self.assertIn('--conf "${CONFIDENCE}"', script)
+        self.assertEqual(script.count("--entrypoint /usr/src/tensorrt/bin/trtexec"), 2)
+        self.assertEqual(script.count("--entrypoint python3"), 1)
+        self.assertNotIn("YOLO_CONFIG_DIR", script)
+        self.assertIn('state/vision-gateway"', script)
+        self.assertIn("benchmark_speciesnet.py", script)
         self.assertIn("deadline = time.monotonic() + 30.0", script)
 
     def test_vision_build_context_is_module_scoped(self) -> None:
