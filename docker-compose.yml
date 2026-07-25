@@ -130,7 +130,7 @@ services:
     ipc: host
     restart: unless-stopped
     runtime: nvidia
-    mem_limit: 3500m
+    mem_limit: 2500m
     pids_limit: 256
     stop_grace_period: 10s
     environment:

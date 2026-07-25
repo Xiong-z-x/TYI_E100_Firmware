@@ -11,6 +11,7 @@ class RepositoryWiringTests(unittest.TestCase):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         block = compose.split("  vision-gateway:", 1)[1]
         self.assertIn("runtime: nvidia", block)
+        self.assertIn("mem_limit: 2500m", block)
         self.assertIn("http://127.0.0.1:8090/snapshot.jpg", block)
         self.assertIn("./models/vision:/opt/uav/models:ro", block)
         self.assertNotIn("/dev:/dev", block)
@@ -44,6 +45,7 @@ class RepositoryWiringTests(unittest.TestCase):
         script = (ROOT / "scripts" / "vision.sh").read_text(encoding="utf-8")
         self.assertEqual(script.count("docker run --rm --no-healthcheck"), 3)
         self.assertEqual(script.count("--entrypoint python3"), 3)
+        self.assertIn('state/vision-gateway/ultralytics"', script)
 
     def test_vision_build_context_is_module_scoped(self) -> None:
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")

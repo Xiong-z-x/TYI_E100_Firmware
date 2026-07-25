@@ -72,7 +72,7 @@ case "${command}" in
     require_file "${ENGINE}" "TensorRT engine"
     mkdir -p \
       "${ROOT_DIR}/logs/vision-gateway" \
-      "${ROOT_DIR}/state/vision-gateway"
+      "${ROOT_DIR}/state/vision-gateway/ultralytics"
     compose up -d --no-deps vision-gateway
     ;;
   down)
