@@ -52,6 +52,8 @@ class RepositoryWiringTests(unittest.TestCase):
         self.assertEqual(script.count("--entrypoint python3"), 3)
         self.assertEqual(script.count("YOLO_CONFIG_DIR=/tmp"), 3)
         self.assertIn('state/vision-gateway/ultralytics"', script)
+        self.assertIn('--conf "${CONFIDENCE}"', script)
+        self.assertIn("deadline = time.monotonic() + 30.0", script)
 
     def test_vision_build_context_is_module_scoped(self) -> None:
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
