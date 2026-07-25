@@ -59,3 +59,22 @@
   `A342A4DDE7D0BC6A14D1D2DE51F693A8877F72C7FA64088C57FBD1DD607FFD57`。
 - SpeciesNet 原始 ONNX 首次构建因 TensorRT 8.5 的 Squeeze axes 常量限制失败；
   已将常量折叠步骤写入导出工具，折叠前后 ONNX Runtime 输出逐元素一致。
+- 折叠后的 SpeciesNet ONNX 在 Nano TensorRT 8.5.2 上构建成功；分类引擎
+  SHA-256 为
+  `55C70841F9FD1585288D3820C6B3E28AC7E3DEE619718824BE7CB41A758A7E4F`。
+- 新 `vision-gateway:2.0.0` 已部署：官方整图板端 15/15 检出、15/15 分类
+  正确；实时相机约 224--233 ms/frame，处理能力约 4.1 FPS，按 2 FPS 运行，
+  连续 685 帧零失败。
+- 视觉容器实测约 1.718 GiB，限制 2.734 GiB；板端可用内存约 2.9 GiB。
+  `flight-core`、`control-gateway`、`pointcloud-gateway` 和
+  `vision-gateway` 同时保持 healthy。
+- 删除板端旧 YOLOE 权重、旧合成测试输出、Ultralytics 运行缓存、旧
+  `vision-gateway:1.0.0-yoloe26s-jp5` 镜像及重复上游镜像标签；保留用于可重复
+  构建的 `tyi/ultralytics:jetpack5-20260724`。
+- Windows 按严格白名单清理旧 v1/冒烟数据集、旧 YOLO 权重、重复 ONNX/PT、
+  pip 缓存、崩溃转储和可重建临时清单，实际释放约 2.03 GiB；WSL、最终 v2
+  数据集、模型源、最终 ONNX、AutoDL 包和飞控固件均保留。
+- AutoDL 离线包：
+  `C:\nano\autodl\speciesnet-closed-set-v2-autodl-20260725.tar.gz`，
+  320,365,314 bytes，SHA-256
+  `2FBD5F64072F1A2F2F4BED9052299DBF1968F766D3FA68C9E078BDC74FC33005`。

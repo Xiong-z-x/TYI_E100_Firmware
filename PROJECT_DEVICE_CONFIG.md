@@ -728,3 +728,47 @@ containers:             flight-core, control-gateway, pointcloud-gateway,
                         vision-gateway all healthy
 camera ownership:       only orin-camera-stream.service owns /dev/video0
 ```
+
+## SpeciesNet deployment superseding the YOLOE baseline on 2026-07-25
+
+The YOLOE deployment above is retained only as historical failure evidence. It
+is no longer installed or used. The active optional vision pipeline is:
+
+```text
+orin-camera-stream.service
+  -> MegaDetector v5a TensorRT FP16, 1280
+  -> SpeciesNet v4.0.3a TensorRT FP16, 480, classify every animal crop
+  -> five-class taxonomic aggregation and conservative unknown rejection
+```
+
+Final engine evidence:
+
+```text
+MegaDetector engine SHA-256:
+  A342A4DDE7D0BC6A14D1D2DE51F693A8877F72C7FA64088C57FBD1DD607FFD57
+SpeciesNet engine SHA-256:
+  55C70841F9FD1585288D3820C6B3E28AC7E3DEE619718824BE7CB41A758A7E4F
+TensorRT-compatible folded classifier ONNX SHA-256:
+  71E77ABD7D5D87088C74AF222EAAB52A17696ACD36F52C18FAABD3F438B45751
+```
+
+Nano benchmark and live evidence:
+
+```text
+official targets:       15
+accepted / rejected:    15 / 0
+IoU 0.5 matches:        15
+correct classifications:15
+precision / recall:     1.0 / 1.0
+live inference:         about 224-233 ms/frame
+processing capacity:    about 4.1 FPS
+configured rate:        2 FPS
+vision memory:          about 1.718 GiB / 2.734 GiB limit
+observed run:           685 frames, zero failures
+```
+
+The obsolete YOLOE weights, old benchmark residue, old vision image and
+duplicate upstream image tag were removed. The local JetPack 5 base image was
+kept to make rebuilding reproducible. The teammate-owned untracked
+`workspace/src/uav_base_bringup/scripts/orin_telemetry_bridge.py` was not
+changed.
