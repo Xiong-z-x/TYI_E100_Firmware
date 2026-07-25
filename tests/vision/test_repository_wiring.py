@@ -38,6 +38,11 @@ class RepositoryWiringTests(unittest.TestCase):
         self.assertIn("models/vision/*", gitignore)
         self.assertIn("!models/vision/.gitkeep", gitignore)
 
+    def test_disposable_gpu_jobs_override_the_base_image_entrypoint(self) -> None:
+        script = (ROOT / "scripts" / "vision.sh").read_text(encoding="utf-8")
+        self.assertEqual(script.count("docker run --rm"), 3)
+        self.assertEqual(script.count("--entrypoint python3"), 3)
+
 
 if __name__ == "__main__":
     unittest.main()
