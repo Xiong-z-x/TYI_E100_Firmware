@@ -4,6 +4,8 @@ backups/
 state/
 calibration_data/
 experiments/
+models/vision/*
+!models/vision/.gitkeep
 *.bak
 *.bak.*
 *.bak_*

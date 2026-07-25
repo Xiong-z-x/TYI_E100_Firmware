@@ -119,15 +119,35 @@ services:
   vision-gateway:
     profiles:
       - vision
-    image: ${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:0.1.0-local}
+    image: ${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:1.0.0-yoloe26s-jp5}
+    build:
+      context: .
+      dockerfile: docker/vision-gateway/Dockerfile
+      args:
+        ULTRALYTICS_BASE: ${VISION_ULTRALYTICS_BASE:-ultralytics/ultralytics:latest-jetson-jetpack5}
     container_name: ${VISION_GATEWAY_CONTAINER_NAME:-vision-gateway}
     network_mode: host
+    ipc: host
     restart: unless-stopped
+    runtime: nvidia
+    mem_limit: 3500m
+    pids_limit: 256
+    stop_grace_period: 10s
     env_file:
       - .env
     environment:
       VISION_GATEWAY_HTTP_PORT: ${VISION_GATEWAY_HTTP_PORT:-8765}
       VISION_GATEWAY_CONFIG_PATH: /opt/uav/configs/vision-gateway/config.json
+      VISION_CAMERA_SNAPSHOT_URL: ${VISION_CAMERA_SNAPSHOT_URL:-http://127.0.0.1:8090/snapshot.jpg}
+      VISION_CAMERA_HEALTH_URL: ${VISION_CAMERA_HEALTH_URL:-http://127.0.0.1:8090/healthz}
+      VISION_MODEL_PATH: ${VISION_MODEL_PATH:-/opt/uav/models/animal-yoloe.engine}
+      VISION_MODEL_CLASSES: ${VISION_MODEL_CLASSES:-elephant,tiger,wolf,monkey,peacock}
+      VISION_IMAGE_SIZE: ${VISION_IMAGE_SIZE:-768}
+      VISION_TARGET_FPS: ${VISION_TARGET_FPS:-10}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
-      - ./configs:/opt/uav/configs:ro
+      - ./configs/vision-gateway:/opt/uav/configs/vision-gateway:ro
+      - ./models/vision:/opt/uav/models:ro
       - ./logs/vision-gateway:/opt/tyi/logs/vision-gateway
+      - ./state/vision-gateway:/opt/uav/state
