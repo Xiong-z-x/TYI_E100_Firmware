@@ -120,6 +120,8 @@ def main() -> int:
     }
     by_class: DefaultDict[str, List[int]] = defaultdict(lambda: [0, 0])
     by_domain: DefaultDict[str, List[int]] = defaultdict(lambda: [0, 0])
+    by_domain_class: DefaultDict[str, List[int]] = defaultdict(lambda: [0, 0])
+    by_domain_predictions: DefaultDict[str, List[int]] = defaultdict(lambda: [0, 0])
     by_rotation: DefaultDict[str, List[int]] = defaultdict(lambda: [0, 0])
     predictions_total = 0
     predictions_matched = 0
@@ -134,17 +136,24 @@ def main() -> int:
 
     model = YOLO(args.model)
     started = time.perf_counter()
-    results: Iterable[Any] = model.predict(
-        source=[str(path) for path in image_paths],
-        imgsz=args.image_size,
-        batch=args.batch,
-        conf=args.confidence,
-        iou=0.7,
-        max_det=50,
-        device=args.device,
-        stream=True,
-        verbose=False,
-    )
+    def predict_in_chunks() -> Iterable[Any]:
+        # Ultralytics treats an in-memory path list as a single source batch.
+        # Chunk it explicitly so --batch also bounds peak inference memory.
+        for offset in range(0, len(image_paths), args.batch):
+            chunk = image_paths[offset : offset + args.batch]
+            yield from model.predict(
+                source=[str(path) for path in chunk],
+                imgsz=args.image_size,
+                batch=len(chunk),
+                conf=args.confidence,
+                iou=0.7,
+                max_det=50,
+                device=args.device,
+                stream=True,
+                verbose=False,
+            )
+
+    results = predict_in_chunks()
     for image_path, result in zip(image_paths, results):
         result_count += 1
         relative_image = image_path.relative_to(dataset_root).as_posix()
@@ -190,11 +199,16 @@ def main() -> int:
         domain = "synthetic" if synthetic else "real-open-data"
         by_domain[domain][0] += len(matched_targets)
         by_domain[domain][1] += len(targets)
+        by_domain_predictions[domain][0] += len(matched_predictions)
+        by_domain_predictions[domain][1] += len(predictions)
         for target_index, target in enumerate(targets):
             matched = int(target_index in matched_targets)
             class_name = CLASS_NAMES[int(target["classId"])]
             by_class[class_name][0] += matched
             by_class[class_name][1] += 1
+            domain_class = f"{domain}:{class_name}"
+            by_domain_class[domain_class][0] += matched
+            by_domain_class[domain_class][1] += 1
             if "angle" in target:
                 bucket = _rotation_bucket(float(target["angle"]))
                 by_rotation[bucket][0] += matched
@@ -235,6 +249,15 @@ def main() -> int:
         },
         "byClass": _summarize(by_class),
         "byDomain": _summarize(by_domain),
+        "byDomainClass": _summarize(by_domain_class),
+        "byDomainPredictions": {
+            key: {
+                "matched": values[0],
+                "total": values[1],
+                "precision": _ratio(values[0], values[1]),
+            }
+            for key, values in sorted(by_domain_predictions.items())
+        },
         "byAbsoluteRotationDegrees": _summarize(by_rotation),
         "multiInstance": {
             "scenes": multi_scenes,

@@ -21,6 +21,10 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--device", default="0")
     parser.add_argument("--patience", type=int, default=12)
+    parser.add_argument("--lr0", type=float, default=0.001)
+    parser.add_argument("--warmup-epochs", type=float, default=3.0)
+    parser.add_argument("--mosaic", type=float, default=0.65)
+    parser.add_argument("--copy-paste", type=float, default=0.10)
     parser.add_argument(
         "--cache-mode", choices=("false", "ram", "disk"), default="false"
     )
@@ -52,20 +56,20 @@ def main() -> int:
         resume=args.resume,
         patience=args.patience,
         optimizer="AdamW",
-        lr0=0.001,
+        lr0=args.lr0,
         lrf=0.01,
         cos_lr=True,
         weight_decay=0.0005,
-        warmup_epochs=3.0,
+        warmup_epochs=args.warmup_epochs,
         degrees=180.0,
         translate=0.10,
         scale=0.45,
         perspective=0.0005,
         fliplr=0.5,
         flipud=0.5,
-        mosaic=0.65,
+        mosaic=args.mosaic,
         close_mosaic=10,
-        copy_paste=0.10,
+        copy_paste=args.copy_paste,
         hsv_h=0.015,
         hsv_s=0.45,
         hsv_v=0.35,
