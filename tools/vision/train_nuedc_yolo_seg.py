@@ -21,6 +21,9 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--device", default="0")
     parser.add_argument("--patience", type=int, default=12)
+    parser.add_argument(
+        "--cache-mode", choices=("false", "ram", "disk"), default="false"
+    )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
@@ -42,7 +45,7 @@ def main() -> int:
         workers=args.workers,
         device=args.device,
         amp=True,
-        cache=False,
+        cache=False if args.cache_mode == "false" else args.cache_mode,
         project=str(project_path),
         name=args.name,
         exist_ok=True,

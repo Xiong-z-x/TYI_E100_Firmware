@@ -20,7 +20,8 @@ python "${ROOT_DIR}/scripts/train_nuedc_yolo_seg.py" \
   --batch "${BATCH_SIZE:-16}" \
   --workers "${WORKERS:-8}" \
   --device "${DEVICE:-0}" \
-  --patience "${PATIENCE:-15}"
+  --patience "${PATIENCE:-15}" \
+  --cache-mode "${CACHE_MODE:-ram}"
 
 python "${ROOT_DIR}/scripts/evaluate_nuedc_yolo_seg.py" \
   --data "${DATA_YAML}" \
