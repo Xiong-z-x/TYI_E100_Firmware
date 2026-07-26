@@ -3,14 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODEL_DIR="${VISION_MODEL_DIR:-${ROOT_DIR}/models/vision}"
-IMAGE="${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:2.0.0-speciesnet-trt-jp5}"
+IMAGE="${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:2.1.0-yolo11seg-trt-jp5}"
 REFERENCE="${VISION_REFERENCE:-${MODEL_DIR}/nuedc-2025-h-animals.jpg}"
-PROMPTS="${VISION_PROMPTS:-${ROOT_DIR}/configs/vision-gateway/animal_visual_prompts.json}"
-DETECTOR_ONNX="${VISION_DETECTOR_ONNX:-${MODEL_DIR}/megadetector-v5a-1280.onnx}"
-CLASSIFIER_ONNX="${VISION_CLASSIFIER_ONNX:-${MODEL_DIR}/speciesnet-v4.0.3a-480.onnx}"
-DETECTOR_ENGINE="${VISION_DETECTOR_ENGINE:-${MODEL_DIR}/megadetector-v5a-1280-fp16.engine}"
-CLASSIFIER_ENGINE="${VISION_CLASSIFIER_ENGINE:-${MODEL_DIR}/speciesnet-v4.0.3a-480-fp16.engine}"
-CLASSIFIER_LABELS="${VISION_CLASSIFIER_LABELS:-${MODEL_DIR}/speciesnet-v4.0.3a-labels.txt}"
+MODEL_PT="${VISION_MODEL_PT:-${MODEL_DIR}/yolo11s-seg-nuedc-h-v2-hardneg.pt}"
+MODEL_ENGINE="${VISION_MODEL_ENGINE:-${MODEL_DIR}/yolo11s-seg-nuedc-h-v2-hardneg.engine}"
 
 compose() {
   docker compose -f "${ROOT_DIR}/docker-compose.yml" --profile vision "$@"
@@ -44,34 +40,19 @@ case "${command}" in
     compose build vision-gateway
     ;;
   prepare)
-    require_file "${DETECTOR_ONNX}" "MegaDetector ONNX"
-    require_file "${CLASSIFIER_ONNX}" "SpeciesNet classifier ONNX"
-    require_file "${CLASSIFIER_LABELS}" "SpeciesNet classifier labels"
+    require_file "${MODEL_PT}" "NUEDC YOLO11s-seg PyTorch weight"
     mkdir -p "${MODEL_DIR}"
     docker run --rm --no-healthcheck \
       --runtime nvidia \
       --ipc host \
       -v "${MODEL_DIR}:/models" \
-      --entrypoint /usr/src/tensorrt/bin/trtexec \
+      --entrypoint python3 \
       "${IMAGE}" \
-      --onnx="/models/$(basename "${DETECTOR_ONNX}")" \
-      --saveEngine="/models/$(basename "${DETECTOR_ENGINE}")" \
-      --fp16 --workspace=2048 --buildOnly
-    docker run --rm --no-healthcheck \
-      --runtime nvidia \
-      --ipc host \
-      -v "${MODEL_DIR}:/models" \
-      --entrypoint /usr/src/tensorrt/bin/trtexec \
-      "${IMAGE}" \
-      --onnx="/models/$(basename "${CLASSIFIER_ONNX}")" \
-      --saveEngine="/models/$(basename "${CLASSIFIER_ENGINE}")" \
-      --fp16 --workspace=1536 --buildOnly
+      -c "from ultralytics import YOLO; YOLO('/models/$(basename "${MODEL_PT}")').export(format='engine', imgsz=768, half=True, batch=1, dynamic=False, workspace=2, device=0, opset=17, simplify=False)"
     ;;
   up)
     camera_check
-    require_file "${DETECTOR_ENGINE}" "MegaDetector TensorRT engine"
-    require_file "${CLASSIFIER_ENGINE}" "SpeciesNet TensorRT engine"
-    require_file "${CLASSIFIER_LABELS}" "SpeciesNet classifier labels"
+    require_file "${MODEL_ENGINE}" "NUEDC YOLO11s-seg TensorRT engine"
     mkdir -p \
       "${ROOT_DIR}/logs/vision-gateway" \
       "${ROOT_DIR}/state/vision-gateway"
@@ -82,9 +63,7 @@ case "${command}" in
     ;;
   restart)
     camera_check
-    require_file "${DETECTOR_ENGINE}" "MegaDetector TensorRT engine"
-    require_file "${CLASSIFIER_ENGINE}" "SpeciesNet TensorRT engine"
-    require_file "${CLASSIFIER_LABELS}" "SpeciesNet classifier labels"
+    require_file "${MODEL_ENGINE}" "NUEDC YOLO11s-seg TensorRT engine"
     compose restart vision-gateway
     ;;
   status)
@@ -123,28 +102,21 @@ for path in ("v1/detections/latest", "v1/counts"):
 PY
     ;;
   benchmark)
-    require_file "${DETECTOR_ENGINE}" "MegaDetector TensorRT engine"
-    require_file "${CLASSIFIER_ENGINE}" "SpeciesNet TensorRT engine"
-    require_file "${CLASSIFIER_LABELS}" "SpeciesNet classifier labels"
+    require_file "${MODEL_ENGINE}" "NUEDC YOLO11s-seg TensorRT engine"
     require_file "${REFERENCE}" "NUEDC animal reference image"
-    require_file "${PROMPTS}" "visual prompt config"
     benchmark_dir="${ROOT_DIR}/state/vision-gateway/benchmark"
     mkdir -p "${benchmark_dir}"
     docker run --rm --no-healthcheck \
       --runtime nvidia \
       --ipc host \
       -v "${MODEL_DIR}:/models:ro" \
-      -v "${PROMPTS}:/config/animal_visual_prompts.json:ro" \
       -v "${benchmark_dir}:/benchmark" \
       --entrypoint python3 \
       "${IMAGE}" \
-      /opt/uav/vision-gateway/benchmark_speciesnet.py \
-      --detector "/models/$(basename "${DETECTOR_ENGINE}")" \
-      --classifier "/models/$(basename "${CLASSIFIER_ENGINE}")" \
-      --labels "/models/$(basename "${CLASSIFIER_LABELS}")" \
+      /opt/uav/vision-gateway/benchmark_yolo_seg.py \
+      --engine "/models/$(basename "${MODEL_ENGINE}")" \
       --reference "/models/$(basename "${REFERENCE}")" \
-      --prompts /config/animal_visual_prompts.json \
-      --output /benchmark/speciesnet-official-report.json
+      --output /benchmark/yolo11seg-official-report.json
     ;;
   *)
     echo "usage: $0 {build|prepare|up|down|restart|status|logs|check|benchmark}" >&2

@@ -119,7 +119,7 @@ services:
   vision-gateway:
     profiles:
       - vision
-    image: ${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:2.0.0-speciesnet-trt-jp5}
+    image: ${VISION_GATEWAY_IMAGE:-tyi/vision-gateway:2.1.0-yolo11seg-trt-jp5}
     build:
       context: ./docker/vision-gateway
       dockerfile: Dockerfile
@@ -138,12 +138,11 @@ services:
       VISION_GATEWAY_CONFIG_PATH: /opt/uav/configs/vision-gateway/config.json
       VISION_CAMERA_SNAPSHOT_URL: ${VISION_CAMERA_SNAPSHOT_URL:-http://127.0.0.1:8090/snapshot.jpg}
       VISION_CAMERA_HEALTH_URL: ${VISION_CAMERA_HEALTH_URL:-http://127.0.0.1:8090/healthz}
-      VISION_MODEL_BACKEND: ${VISION_MODEL_BACKEND:-speciesnet-tensorrt}
-      VISION_DETECTOR_ENGINE_PATH: ${VISION_DETECTOR_ENGINE_PATH:-/opt/uav/models/megadetector-v5a-1280-fp16.engine}
-      VISION_CLASSIFIER_ENGINE_PATH: ${VISION_CLASSIFIER_ENGINE_PATH:-/opt/uav/models/speciesnet-v4.0.3a-480-fp16.engine}
-      VISION_CLASSIFIER_LABELS_PATH: ${VISION_CLASSIFIER_LABELS_PATH:-/opt/uav/models/speciesnet-v4.0.3a-labels.txt}
+      VISION_MODEL_BACKEND: ${VISION_MODEL_BACKEND:-yolo-seg-tensorrt}
+      VISION_MODEL_PATH: ${VISION_MODEL_PATH:-/opt/uav/models/yolo11s-seg-nuedc-h-v2-hardneg.engine}
+      VISION_MODEL_IMAGE_SIZE: ${VISION_MODEL_IMAGE_SIZE:-768}
       VISION_MODEL_CLASSES: ${VISION_MODEL_CLASSES:-elephant,tiger,wolf,monkey,peacock}
-      VISION_TARGET_FPS: ${VISION_TARGET_FPS:-2}
+      VISION_TARGET_FPS: ${VISION_TARGET_FPS:-10}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:

@@ -129,3 +129,10 @@
   `C:\nano\state\vision-training\yolo11s-seg-nuedc-h-official-v2-20260726` 并校验哈希。
 - 运行时输出策略确定为分级非阻塞滑窗：高置信且几何合理使用 2/3 帧，普通候选使用
   3/5 帧；候选可即时显示，只有最终计数/上报等待确认，已确认轨迹不重复等待。
+- 最终 PT 已上传到 `192.168.0.108` 并在目标 Orin Nano 上导出 FP16 TensorRT；新
+  `vision-gateway:2.1.0-yolo11seg-trt-jp5` 已替换旧双模型容器且健康。
+- 板端实测推理约 29 ms、处理能力约 19.7 FPS，运行限速 10 FPS；相机 1280x720、
+  30 FPS 正常，飞行核心与两个数据网关未受切换影响。
+- 已删除 1.246 GB 旧模型及导出中间文件。板端唯一运行权重为
+  `models/vision/yolo11s-seg-nuedc-h-v2-hardneg.engine`，SHA-256
+  `C550B45C583FC3B4CC6773652F084DE2068729E430E9B0E9B0BF0EF24E5E4A55`。

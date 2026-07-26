@@ -68,16 +68,10 @@ class Settings:
     target_fps: float
     annotated_stream_fps: float
     backend: str
-    detector_engine_path: str
-    classifier_engine_path: str
-    classifier_labels_path: str
+    model_path: str
+    model_size: int
     model_classes: List[str]
-    detector_size: int
-    classifier_size: int
     confidence: float
-    detector_confidence: float
-    native_group_mass: float
-    minimum_margin: float
     iou: float
     max_detections: int
     max_box_width_ratio: float
@@ -85,6 +79,10 @@ class Settings:
     max_box_area_ratio: float
     min_border_margin_ratio: float
     confirm_hits: int
+    confirm_window: int
+    fast_confirm_hits: int
+    fast_confirm_window: int
+    fast_confidence: float
     max_missed: int
     event_log_path: str
     jpeg_quality: int
@@ -117,34 +115,19 @@ class Settings:
             ),
             backend=env_text(
                 "VISION_MODEL_BACKEND",
-                str(inference.get("backend", "speciesnet-tensorrt")),
+                str(inference.get("backend", "yolo-seg-tensorrt")),
             ),
-            detector_engine_path=env_text(
-                "VISION_DETECTOR_ENGINE_PATH",
+            model_path=env_text(
+                "VISION_MODEL_PATH",
                 str(
                     inference.get(
-                        "detectorEnginePath",
-                        "/opt/uav/models/megadetector-v5a-1280-fp16.engine",
+                        "modelPath",
+                        "/opt/uav/models/yolo11s-seg-nuedc-h-v2-hardneg.engine",
                     )
                 ),
             ),
-            classifier_engine_path=env_text(
-                "VISION_CLASSIFIER_ENGINE_PATH",
-                str(
-                    inference.get(
-                        "classifierEnginePath",
-                        "/opt/uav/models/speciesnet-v4.0.3a-480-fp16.engine",
-                    )
-                ),
-            ),
-            classifier_labels_path=env_text(
-                "VISION_CLASSIFIER_LABELS_PATH",
-                str(
-                    inference.get(
-                        "classifierLabelsPath",
-                        "/opt/uav/models/speciesnet-v4.0.3a-labels.txt",
-                    )
-                ),
+            model_size=env_int(
+                "VISION_MODEL_IMAGE_SIZE", int(inference.get("modelInputSize", 768))
             ),
             model_classes=parse_classes(
                 env_text(
@@ -157,28 +140,8 @@ class Settings:
                     ),
                 )
             ),
-            detector_size=env_int(
-                "VISION_DETECTOR_IMAGE_SIZE",
-                int(inference.get("detectorInputSize", 1280)),
-            ),
-            classifier_size=env_int(
-                "VISION_CLASSIFIER_IMAGE_SIZE",
-                int(inference.get("classifierInputSize", 480)),
-            ),
             confidence=env_float(
                 "VISION_CONFIDENCE", float(inference.get("closedSetConfidence", 0.80))
-            ),
-            detector_confidence=env_float(
-                "VISION_DETECTOR_CONFIDENCE",
-                float(inference.get("detectorConfidence", 0.20)),
-            ),
-            native_group_mass=env_float(
-                "VISION_MINIMUM_NATIVE_GROUP_MASS",
-                float(inference.get("minimumNativeGroupMass", 0.45)),
-            ),
-            minimum_margin=env_float(
-                "VISION_MINIMUM_MARGIN",
-                float(inference.get("minimumMargin", 0.30)),
             ),
             iou=env_float("VISION_IOU", float(inference.get("iou", 0.55))),
             max_detections=env_int(
@@ -202,6 +165,18 @@ class Settings:
             ),
             confirm_hits=env_int(
                 "VISION_CONFIRM_HITS", int(tracking.get("confirmHits", 3))
+            ),
+            confirm_window=env_int(
+                "VISION_CONFIRM_WINDOW", int(tracking.get("confirmWindow", 5))
+            ),
+            fast_confirm_hits=env_int(
+                "VISION_FAST_CONFIRM_HITS", int(tracking.get("fastConfirmHits", 2))
+            ),
+            fast_confirm_window=env_int(
+                "VISION_FAST_CONFIRM_WINDOW", int(tracking.get("fastConfirmWindow", 3))
+            ),
+            fast_confidence=env_float(
+                "VISION_FAST_CONFIDENCE", float(tracking.get("fastConfidence", 0.85))
             ),
             max_missed=env_int("VISION_MAX_MISSED", int(tracking.get("maxMissed", 8))),
             event_log_path=env_text(
@@ -239,7 +214,7 @@ class SharedState:
         self.source_ready = False
         self.source_error: Optional[str] = None
         self.model_backend = settings.backend
-        self.model_name = "SpeciesNet-v4.0.3a+MegaDetector-v5a"
+        self.model_name = "YOLO11s-seg-NUEDC-H-official-v2-hardneg"
         self.sequence = 0
         self.last_frame_monotonic: Optional[float] = None
         self.latest_payload: Dict[str, Any] = {}
@@ -310,7 +285,7 @@ class SharedState:
             payload = {
                 "status": "ok" if healthy else "unavailable",
                 "service": "animal-vision-gateway",
-                "version": "2.0.0",
+                "version": "2.1.0",
                 "uptimeSec": round(time.monotonic() - self.started_monotonic, 1),
                 "model": {
                     "ready": self.model_ready,
@@ -318,8 +293,7 @@ class SharedState:
                     "backend": self.model_backend,
                     "classes": list(self.settings.model_classes),
                     "inputSizes": {
-                        "detector": self.settings.detector_size,
-                        "classifier": self.settings.classifier_size,
+                        "model": self.settings.model_size,
                     },
                     "boxLimits": {
                         "maxWidthRatio": self.settings.max_box_width_ratio,
@@ -376,36 +350,27 @@ class ModelRunner:
     def __init__(self, settings: Settings) -> None:
         import cv2
         import numpy as np
-        from speciesnet_trt import SpeciesNetTensorRTRunner
-
         self.cv2 = cv2
         self.np = np
         self.settings = settings
-        if settings.backend != "speciesnet-tensorrt":
+        if settings.backend != "yolo-seg-tensorrt":
             raise ValueError(f"unsupported vision backend: {settings.backend}")
-        if settings.detector_size != SpeciesNetTensorRTRunner.DETECTOR_SIZE:
-            raise ValueError(
-                "detectorInputSize must match the static TensorRT engine: "
-                f"{SpeciesNetTensorRTRunner.DETECTOR_SIZE}"
-            )
-        if settings.classifier_size != SpeciesNetTensorRTRunner.CLASSIFIER_SIZE:
-            raise ValueError(
-                "classifierInputSize must match the static TensorRT engine: "
-                f"{SpeciesNetTensorRTRunner.CLASSIFIER_SIZE}"
-            )
-        self.model = SpeciesNetTensorRTRunner(
-            detector_engine=settings.detector_engine_path,
-            classifier_engine=settings.classifier_engine_path,
-            labels_path=settings.classifier_labels_path,
-            detector_confidence=settings.detector_confidence,
-            detector_iou=settings.iou,
+        from yolo_seg_trt import YOLOSegTensorRTRunner
+
+        self.model = YOLOSegTensorRTRunner(
+            engine_path=settings.model_path,
+            class_names=settings.model_classes,
+            input_size=settings.model_size,
+            confidence=settings.confidence,
+            iou=settings.iou,
             max_detections=settings.max_detections,
-            closed_set_confidence=settings.confidence,
-            native_group_mass=settings.native_group_mass,
-            minimum_margin=settings.minimum_margin,
         )
         self.tracker = AnimalTracker(
             confirm_hits=settings.confirm_hits,
+            confirm_window=settings.confirm_window,
+            fast_confirm_hits=settings.fast_confirm_hits,
+            fast_confirm_window=settings.fast_confirm_window,
+            fast_confidence=settings.fast_confidence,
             max_missed=settings.max_missed,
         )
 
@@ -439,11 +404,12 @@ class ModelRunner:
                     label=result.label,
                     confidence=result.confidence,
                     box=result.box,
-                    detector_confidence=result.detector_confidence,
-                    native_label=result.native_label,
-                    native_confidence=result.native_confidence,
-                    native_group_mass=result.native_group_mass,
-                    margin=result.margin,
+                    mask_area_px=getattr(result, "mask_area_px", None),
+                    detector_confidence=getattr(result, "detector_confidence", None),
+                    native_label=getattr(result, "native_label", None),
+                    native_confidence=getattr(result, "native_confidence", None),
+                    native_group_mass=getattr(result, "native_group_mass", None),
+                    margin=getattr(result, "margin", None),
                 )
             )
         annotated = frame.copy()
@@ -530,9 +496,8 @@ class InferenceWorker(threading.Thread):
             runner = ModelRunner(self.settings)
             self.state.note_model_ready()
             logging.info(
-                "model ready: detector=%s classifier=%s classes=%s",
-                self.settings.detector_engine_path,
-                self.settings.classifier_engine_path,
+                "model ready: engine=%s classes=%s",
+                self.settings.model_path,
                 ",".join(self.settings.model_classes),
             )
         except Exception as error:

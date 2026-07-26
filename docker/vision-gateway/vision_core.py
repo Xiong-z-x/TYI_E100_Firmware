@@ -123,6 +123,7 @@ class Track:
     last_seen: float
     hits: int = 1
     missed: int = 0
+    hit_history: List[bool] = field(default_factory=lambda: [True])
     confirmed: bool = False
     event_emitted: bool = False
 
@@ -132,6 +133,7 @@ class Track:
             {
                 "hits": self.hits,
                 "missed": self.missed,
+                "confirmationWindow": [int(value) for value in self.hit_history],
                 "firstSeenMonotonic": round(self.first_seen, 3),
                 "lastSeenMonotonic": round(self.last_seen, 3),
             }
@@ -172,15 +174,25 @@ class AnimalTracker:
     def __init__(
         self,
         confirm_hits: int = 3,
+        confirm_window: int = 5,
+        fast_confirm_hits: int = 2,
+        fast_confirm_window: int = 3,
+        fast_confidence: float = 1.1,
         max_missed: int = 8,
         min_iou: float = 0.15,
         max_center_distance_ratio: float = 1.25,
     ) -> None:
-        if confirm_hits < 1:
-            raise ValueError("confirm_hits must be >= 1")
+        if confirm_hits < 1 or confirm_hits > confirm_window:
+            raise ValueError("confirm_hits must be within confirm_window")
+        if fast_confirm_hits < 1 or fast_confirm_hits > fast_confirm_window:
+            raise ValueError("fast_confirm_hits must be within fast_confirm_window")
         if max_missed < 0:
             raise ValueError("max_missed must be >= 0")
         self.confirm_hits = confirm_hits
+        self.confirm_window = confirm_window
+        self.fast_confirm_hits = fast_confirm_hits
+        self.fast_confirm_window = fast_confirm_window
+        self.fast_confidence = fast_confidence
         self.max_missed = max_missed
         self.min_iou = min_iou
         self.max_center_distance_ratio = max_center_distance_ratio
@@ -211,11 +223,14 @@ class AnimalTracker:
             track.last_seen = now
             track.hits += 1
             track.missed = 0
+            self._append_observation(track, True)
             unmatched_track_ids.remove(track_id)
             unmatched_detection_ids.remove(detection_id)
 
         for track_id in unmatched_track_ids:
-            self._tracks[track_id].missed += 1
+            track = self._tracks[track_id]
+            track.missed += 1
+            self._append_observation(track, False)
 
         for detection_id in sorted(unmatched_detection_ids):
             detection = detections[detection_id]
@@ -238,7 +253,7 @@ class AnimalTracker:
 
         events: List[TrackEvent] = []
         for track in self._tracks.values():
-            if not track.confirmed and track.hits >= self.confirm_hits:
+            if not track.confirmed and self._confirmation_ready(track):
                 track.confirmed = True
             if track.confirmed and not track.event_emitted:
                 track.event_emitted = True
@@ -258,6 +273,22 @@ class AnimalTracker:
             key=lambda track: track.track_id,
         )
         return TrackerUpdate(tracks=active_tracks, events=events)
+
+    def _append_observation(self, track: Track, detected: bool) -> None:
+        track.hit_history.append(detected)
+        max_window = max(self.confirm_window, self.fast_confirm_window)
+        if len(track.hit_history) > max_window:
+            del track.hit_history[:-max_window]
+
+    def _confirmation_ready(self, track: Track) -> bool:
+        if track.detection.confidence >= self.fast_confidence:
+            hits = self.fast_confirm_hits
+            window = self.fast_confirm_window
+        else:
+            hits = self.confirm_hits
+            window = self.confirm_window
+        recent = track.hit_history[-window:]
+        return len(recent) >= hits and sum(recent) >= hits
 
     def class_counts(self) -> Dict[str, int]:
         counts: Dict[str, int] = {}

@@ -72,6 +72,35 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(update.events[0].label, "tiger")
         self.assertEqual(tracker.update([self.detection(16)], 4.0).events, [])
 
+    def test_fast_confirmation_accepts_two_of_three_frames(self) -> None:
+        tracker = AnimalTracker(
+            confirm_hits=3,
+            confirm_window=5,
+            fast_confirm_hits=2,
+            fast_confirm_window=3,
+            fast_confidence=0.85,
+            max_missed=2,
+        )
+        self.assertEqual(tracker.update([self.detection(10)], 1.0).events, [])
+        self.assertEqual(tracker.update([], 2.0).events, [])
+        update = tracker.update([self.detection(11)], 3.0)
+        self.assertEqual(len(update.events), 1)
+
+    def test_normal_confirmation_uses_three_of_five_frames(self) -> None:
+        tracker = AnimalTracker(
+            confirm_hits=3,
+            confirm_window=5,
+            fast_confidence=0.85,
+            max_missed=2,
+        )
+        low = Detection(1, "tiger", 0.75, (10.0, 10.0, 30.0, 30.0))
+        self.assertEqual(tracker.update([low], 1.0).events, [])
+        self.assertEqual(tracker.update([], 2.0).events, [])
+        self.assertEqual(tracker.update([low], 3.0).events, [])
+        self.assertEqual(tracker.update([], 4.0).events, [])
+        update = tracker.update([low], 5.0)
+        self.assertEqual(len(update.events), 1)
+
     def test_does_not_cross_match_classes(self) -> None:
         tracker = AnimalTracker(confirm_hits=1)
         first = tracker.update([self.detection(10, "tiger", 1)], 1.0)

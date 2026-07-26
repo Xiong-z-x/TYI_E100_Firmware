@@ -174,3 +174,21 @@
   `8D7B5974BB2003926BA3CADC62BF05FDDF259C8E11D50A688B81A6A5B90D81F5`。
 - 以上性能来自官方素材构造的独立合成测试，不等于真实相机现场验收。打印实物在
   110/120/130 cm 高度、真实光照、旋转和运动模糊下的真机测试仍是部署前硬门槛。
+
+## 2026-07-26 Orin Nano 最终模型部署
+
+- 重新发现并核验目标板：`192.168.0.108`、MAC `70:a6:cc:0d:8f:5e`，当前硬件实际
+  为 NVIDIA Orin Nano Developer Kit。SSH ED25519 指纹仍为
+  `SHA256:cg8XoeYd0OpZ+cAbCy+bnUhk20JgJjHENUdwGiYbExI`。
+- AutoDL、本机 PT 和上传板端 PT 的 SHA-256 一致；TensorRT 引擎必须在目标 Orin
+  上重新生成，最终板端引擎大小 22,535,222 bytes，SHA-256
+  `C550B45C583FC3B4CC6773652F084DE2068729E430E9B0E9B0BF0EF24E5E4A55`。
+- 视觉网关已从 MegaDetector+SpeciesNet 双模型切换为单个 YOLO11s-seg FP16
+  TensorRT 引擎。运行配置为 768 输入、候选阈值 0.70、目标 10 FPS；高置信目标
+  2/3 帧确认，普通目标 3/5 帧确认。
+- 新网关 `2.1.0` 实时相机空场景连续运行无失败：推理约 29 ms，当前处理能力约
+  19.7 FPS，容器目标限速 10 FPS。`orin-camera-stream.service`、`flight-core`、
+  `control-gateway`、`pointcloud-gateway` 均保持健康。
+- 已按白名单删除板端旧 MegaDetector/SpeciesNet ONNX、TensorRT、标签文件、旧视觉
+  镜像标签以及新模型导出中间 PT/ONNX，共释放 1,246,203,543 bytes。板端模型目录
+  只保留最终引擎、两张官方测试图和 `.gitkeep`。
